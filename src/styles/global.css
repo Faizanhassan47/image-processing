@@ -1,0 +1,76 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--text-main);
+  background-color: var(--bg-app);
+  background-image:
+    radial-gradient(at 0% 0%, rgba(6, 182, 212, 0.08) 0, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(59, 130, 246, 0.06) 0, transparent 50%);
+  background-attachment: fixed;
+  font-family: var(--font-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+#root {
+  min-height: 100vh;
+  width: 100%;
+}
+
+.app-error {
+  max-width: 560px;
+  margin: 15vh auto;
+  padding: 28px;
+  color: var(--text-main);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  font-family: var(--font-primary);
+}
+
+.app-error h1 { margin: 0 0 10px; font-size: 1.25rem; }
+.app-error p { color: var(--text-muted); }
+.app-error button {
+  margin-top: 18px;
+  padding: 9px 14px;
+  color: var(--bg-app);
+  background: var(--primary);
+  border-radius: var(--radius-sm);
+}
+/* Keyboard navigation and route-level layout */
+.skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 2000;
+  padding: 8px 12px;
+  color: var(--text-on-primary);
+  background: var(--primary);
+  border-radius: var(--radius-sm);
+  transform: translateY(-150%);
+}
+
+.skip-link:focus { transform: translateY(0); }
+.route-loading, .not-found { min-height: 100vh; display: grid; place-content: center; gap: 12px; text-align: center; }
+.admin-page-layout { min-height: 100vh; display: flex; flex-direction: column; }
+.admin-page-header { padding: 16px 32px; border-bottom: 1px solid var(--border-subtle); }
+.admin-page-header .header-brand { flex: 1; }
+.admin-page-header h1 { margin: 0; color: var(--text-main); font-size: 1.25rem; }
+.admin-page-content { flex: 1; display: flex; justify-content: center; padding: 32px; }
+.admin-page-inner { width: 100%; max-width: 1200px; }
+.route-link, .admin-route-link { padding: 6px 12px; text-decoration: none; }
+.feature-error { margin: 24px; padding: 24px; border: 1px solid var(--border-danger); border-radius: var(--radius-md); }
+
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }

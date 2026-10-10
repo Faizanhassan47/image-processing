@@ -1,0 +1,48 @@
+.report-panel {
+  margin-top: 20px;
+  padding: 20px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.report-panel .field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.report-panel .field-label {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.report-panel input,
+.report-panel textarea,
+.report-panel select {
+  width: 100%;
+  padding: 9px 10px;
+  color: var(--text-main);
+  background: var(--bg-inner);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  font: inherit;
+}
+
+.report-panel textarea {
+  resize: vertical;
+}
+
+.report-panel input:focus,
+.report-panel textarea:focus,
+.report-panel select:focus {
+  border-color: var(--primary);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+@media (max-width: 640px) {
+  .report-panel {
+    padding: 14px;
+  }
+}

@@ -1,0 +1,94 @@
+
+:root {
+  --font-primary: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  --bg-app: #f3f4f6;
+  --bg-card: #ffffff;
+  --bg-card-border: #e5e7eb;
+  --bg-inner: #f9fafb;
+  --bg-canvas: #e5e7eb;
+
+  --primary: #0f766e;
+  --primary-glow: rgba(15, 118, 110, 0.15);
+  --primary-hover: #0d9488;
+  --primary-dark: #115e59;
+
+  --text-main: #0f172a;
+  --text-muted: #475569;
+  --text-dim: #64748b;
+
+  --border-subtle: #e2e8f0;
+  --border-interactive: #cbd5e1;
+  --border-primary: rgba(15, 118, 110, 0.3);
+  --border-danger: rgba(220, 38, 38, 0.3);
+  --border-success: rgba(5, 150, 105, 0.3);
+  --border-danger-strong: rgba(220, 38, 38, 0.4);
+  --border-danger-hover: rgba(220, 38, 38, 0.6);
+  --border-primary-hover: rgba(15, 118, 110, 0.5);
+  --border-width: 1px;
+
+  --radius-lg: 8px;
+  --radius-md: 6px;
+  --radius-sm: 4px;
+  --radius-pill: 999px;
+
+  --shadow-lg: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+
+  --surface-control: #ffffff;
+  --surface-table-header: #f8fafc;
+  --surface-primary-soft: rgba(15, 118, 110, 0.05);
+  --surface-primary-hover: rgba(15, 118, 110, 0.08);
+  --surface-danger-soft: rgba(220, 38, 38, 0.05);
+  --surface-danger: rgba(220, 38, 38, 0.1);
+  --surface-danger-hover: rgba(220, 38, 38, 0.15);
+  --surface-success-soft: rgba(5, 150, 105, 0.05);
+  --surface-primary-active: rgba(15, 118, 110, 0.15);
+
+  --text-on-primary: #ffffff;
+  --text-danger: #b91c1c;
+  --text-success: #047857;
+  --text-inverse: #ffffff;
+  --color-transparent: transparent;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 10px;
+  --space-4: 12px;
+  --space-5: 14px;
+  --space-6: 16px;
+  --space-7: 18px;
+  --space-8: 20px;
+  --space-9: 22px;
+  --space-10: 24px;
+  --space-12: 28px;
+  --space-label-gap: 6px;
+  --space-message-block: 10px;
+  --space-message-inline: 12px;
+  --space-action-inline: 10px;
+
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.8125rem;
+  --font-size-action: 0.8125rem;
+  --font-size-md: 0.875rem;
+  --font-size-body: 0.875rem;
+  --font-size-input: 0.875rem;
+  --font-size-heading-sm: 1rem;
+  --font-size-heading-md: 1.25rem;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --line-height-tight: 1.25;
+  --letter-spacing-label: 0;
+  --letter-spacing-heading: 0;
+
+  --control-height: 38px;
+  --button-height: 36px;
+  --admin-form-width: 360px;
+  --admin-table-min-width: 560px;
+  --admin-column-min-width: 280px;
+  --transition-fast: 150ms ease;
+  --active-press-offset: 1px;
+  --focus-ring-width: 2px;
+}

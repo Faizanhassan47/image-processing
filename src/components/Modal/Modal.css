@@ -1,0 +1,95 @@
+.modal-open {
+  overflow: hidden;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: var(--space-5);
+  background: rgba(0, 0, 0, 0.68);
+  backdrop-filter: blur(2px);
+}
+
+.global-modal {
+  width: min(100%, 460px);
+  color: var(--text-main);
+  background: var(--bg-inner);
+  border: var(--border-width) solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
+  outline: none;
+  animation: modal-enter 160ms ease-out;
+}
+
+.global-modal__header,
+.global-modal__footer {
+  display: flex;
+  align-items: center;
+  padding: var(--space-5) var(--space-6);
+}
+
+.global-modal__header {
+  justify-content: space-between;
+  border-bottom: var(--border-width) solid var(--border-subtle);
+}
+
+.global-modal__header h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--font-size-heading-sm);
+}
+
+.global-modal__close {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  color: var(--text-muted);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.global-modal__close:hover {
+  color: var(--text-main);
+  background: var(--surface-primary-soft);
+}
+
+.global-modal__body {
+  padding: var(--space-6);
+}
+
+.global-modal__footer {
+  justify-content: flex-end;
+  gap: var(--space-3);
+  border-top: var(--border-width) solid var(--border-subtle);
+}
+
+@keyframes modal-enter {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .global-modal { animation: none; }
+}
+
+.modal-button {
+  min-height: var(--button-height);
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+}
+
+.modal-button:disabled { opacity: 0.6; cursor: not-allowed; }
+.modal-button--secondary { color: var(--text-main); background: transparent; border: var(--border-width) solid var(--border-subtle); }
+.modal-button--primary { color: var(--text-on-primary); background: var(--primary); border: var(--border-width) solid var(--primary); }
+.modal-button--primary:hover:not(:disabled) { background: var(--primary-hover); }
+.confirmation-copy { margin: 0; color: var(--text-muted); }

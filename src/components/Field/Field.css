@@ -1,0 +1,11 @@
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.input-group > span {
+  color: #aeb8bc;
+  font-size: 0.74rem;
+  font-weight: 600;
+}
