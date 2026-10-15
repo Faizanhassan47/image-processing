@@ -1251,3 +1251,177 @@ textarea {
   min-width: 0;
   background-color: var(--background);
 }
+
+/* Final workspace theme. Kept in this lazy-loaded stylesheet so legacy rules
+   cannot override the shared light design system after route navigation. */
+:root {
+  --bg-app: var(--color-background);
+  --bg-card: var(--color-surface);
+  --bg-card-border: var(--color-border);
+  --bg-inner: var(--color-surface-subtle);
+  --bg-canvas: #11171a;
+  --primary: var(--color-primary);
+  --primary-hover: var(--color-primary-hover);
+  --primary-dark: #174f54;
+  --primary-glow: rgba(33, 110, 117, .16);
+  --text-main: var(--color-text);
+  --text-muted: var(--color-text-muted);
+  --text-dim: #72818a;
+  --border-subtle: var(--color-border);
+  --surface: var(--color-surface);
+  --surface-hover: var(--color-surface-hover);
+  --background: var(--color-background);
+  --text: var(--color-text);
+  --border: var(--color-border);
+}
+
+body { background: var(--color-background); }
+.layout { width: 100%; max-width: 1680px; min-height: 100vh; margin: 0 auto; padding: 0 32px 36px; gap: 20px; }
+.header { min-height: 72px; margin: 0 -32px; padding: 0 32px; color: var(--color-text); background: var(--color-surface); border-bottom: 1px solid var(--color-border); box-shadow: var(--shadow-sm); }
+.header-brand { gap: 12px; }
+.logo-icon { width: 40px; height: 40px; color: var(--color-primary); background: var(--color-primary-soft); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); box-shadow: none; }
+.header h1 { display: block; margin: 0; color: var(--color-text); font-size: 1.08rem; font-weight: 700; letter-spacing: -.01em; }
+.subtitle { margin: 3px 0 0; color: var(--color-text-muted); font-size: .78rem; }
+.header-actions { flex-wrap: nowrap; }
+.backend-indicator { padding: 6px 10px; color: var(--color-text-muted); background: var(--color-surface); border-color: var(--color-border); border-radius: var(--radius-pill); }
+.status-dot.online { background: #1b9a69; box-shadow: none; }
+.status-dot.offline { background: var(--color-danger); box-shadow: none; }
+.admin-route-link { color: var(--color-primary); background: var(--color-primary-soft); border-color: var(--color-border-strong); }
+
+.card, .sidebar-card, .viewer-card { color: var(--color-text); background: var(--color-surface); border: 1px solid var(--color-border); box-shadow: var(--shadow-sm); }
+.form-card { max-width: none; margin: 18px 0 0; border-radius: var(--radius-md); }
+.form-card-toggle { color: var(--color-text); }
+.form-card-toggle:hover { background: var(--color-surface-subtle); }
+.form-card-toggle svg { color: var(--color-primary); }
+.form-card-toggle > svg:last-child { color: var(--color-text-muted); }
+.form-card .upload-form { background: var(--color-surface-subtle); }
+
+.columns { grid-template-columns: 360px minmax(0, 1fr); gap: 20px; min-height: calc(100vh - 188px); }
+.sidebar-card { min-height: 680px; max-height: calc(100vh - 190px); padding: 18px; gap: 14px; border-radius: var(--radius-md); }
+.sidebar-title-row h2 { color: var(--color-text); font-size: 1rem; }
+.case-count-pill { min-width: 24px; color: var(--color-text-muted); background: var(--color-surface-subtle); border: 1px solid var(--color-border); border-radius: var(--radius-pill); text-align: center; }
+.worklist-tabs { scrollbar-width: none; }
+.worklist-tabs::-webkit-scrollbar { display: none; }
+.worklist-tab { flex: 1 0 auto; }
+.search-bar { color: var(--color-text-muted); background: var(--color-surface); border-color: var(--color-border-strong); }
+.search-bar:focus-within { border-color: var(--color-primary); box-shadow: var(--focus-ring); }
+.search-bar input { color: var(--color-text); background: transparent; }
+.archive-filters select { min-height: 38px; color: var(--color-text); background: var(--color-surface); border-color: var(--color-border-strong); }
+.cases-list-scroll { gap: 7px; padding-right: 3px; }
+.case { padding: 13px; color: var(--color-text); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-sm); }
+.case:hover { background: var(--color-surface-hover); border-color: #526970; transform: none; }
+.case.case-active { background: var(--color-primary-soft); border-color: #4f8f8a; box-shadow: inset 3px 0 0 var(--color-primary); }
+.case-id { color: var(--color-text); font-family: var(--font-primary); font-size: .88rem; }
+.case-desc, .case-footer, .case-review-summary { color: var(--color-text-muted); }
+.review-status { color: var(--color-text-muted); background: var(--color-surface-subtle); border-color: var(--color-border); }
+.review-status.status-in-review { color: var(--color-warning-text); background: var(--color-warning-soft); border-color: #66522e; }
+.review-status.status-reviewed { color: var(--color-success-text); background: var(--color-success-soft); border-color: #315d49; }
+
+.viewer-card { min-height: 680px; padding: 16px; border-radius: var(--radius-md); }
+.viewer-header { color: var(--color-text); }
+.viewer-info-title h2 { color: var(--color-text); }
+.specimen-tag { color: var(--color-text-muted); background: var(--color-surface-subtle); border-color: var(--color-border); }
+.viewer-placeholder { min-height: 560px; color: var(--color-text-muted); background: #101619; border: 1px dashed var(--color-border-strong); border-radius: var(--radius-sm); }
+.viewer-placeholder h3 { color: var(--color-text); font-size: 1rem; }
+.viewer-placeholder svg { color: #65747b; }
+.viewer-hint-bar { color: #d4dde1; background: #232b2f; border-color: #394348; }
+.viewer, .wsi-viewer { background: #11171a; }
+
+.slide-tray { gap: 8px; padding: 2px 0 10px; }
+.tray-item { flex-basis: 220px; background: var(--color-surface); border-color: var(--color-border); }
+.tray-item:hover { border-color: #83adb1; }
+.tray-active { background: var(--color-primary-soft); border-color: var(--color-primary); box-shadow: inset 0 -3px 0 var(--color-primary); }
+.tray-copy b { color: var(--color-text-muted); }
+.upload-state { color: var(--color-success-text); }
+.tray-edit { color: var(--color-text-muted); background: rgba(20,27,31,.94); border: 1px solid var(--color-border); }
+.tray-compare { color: var(--color-text-muted); }
+
+.add-slide-form, .edit-slide-form, .qc-form { color: var(--color-text); background: var(--color-surface-subtle); border-color: var(--color-border); }
+.review-panel { color: var(--color-text); background: var(--color-surface); border-color: var(--color-border); }
+.review-panel-title h3, .qc-title { color: var(--color-text); }
+.review-controls form, .review-records details, .review-records summary { color: var(--color-text); background: var(--color-surface-subtle); border-color: var(--color-border); }
+.review-records article { border-color: var(--color-border); }
+.review-records article p, .review-records article time, .review-empty { color: var(--color-text-muted); }
+.qc-pass { color: var(--color-success-text); background: var(--color-success-soft); border-color: #315d49; }
+.qc-needs-rescan { color: var(--color-danger-text); background: var(--color-danger-soft); border-color: #6b373b; }
+.qc-cannot-assess { color: var(--color-warning-text); background: var(--color-warning-soft); border-color: #66522e; }
+.compare-toolbar { color: var(--color-text); background: var(--color-surface-subtle); border-color: var(--color-border); }
+.compare-panels { background: var(--color-border); }
+.compare-panel { background: var(--color-surface); }
+
+@media (max-width: 1100px) {
+  .layout { padding-inline: 20px; }
+  .header { margin-inline: -20px; padding-inline: 20px; }
+  .columns { grid-template-columns: 300px minmax(0, 1fr); }
+}
+@media (max-width: 820px) {
+  .layout { padding-inline: 12px; }
+  .header { margin-inline: -12px; padding: 10px 12px; }
+  .columns { grid-template-columns: 1fr; }
+  .sidebar-card { min-height: auto; max-height: 390px; }
+}
+@media (max-width: 600px) {
+  .header { align-items: flex-start; }
+  .header-actions { width: 100%; flex-wrap: wrap; }
+  .backend-indicator:has(.status-dot.online) { display: none; }
+  .user-context { margin-left: auto; }
+  .viewer-card { padding: 10px; }
+}
+
+/* Workspace viewport corrections. These rules intentionally live last so the
+   lazy-loaded workspace cannot inherit obsolete fixed-width layout behavior. */
+.layout {
+  width: 100%;
+  max-width: none;
+  padding-inline: clamp(16px, 2vw, 32px);
+  overflow-x: clip;
+}
+
+.header {
+  margin-inline: calc(clamp(16px, 2vw, 32px) * -1);
+  padding-inline: clamp(16px, 2vw, 32px);
+}
+
+.columns,
+.sidebar-card,
+.viewer-card,
+.viewer-canvas-container {
+  min-width: 0;
+}
+
+.columns {
+  grid-template-columns: clamp(300px, 21vw, 350px) minmax(0, 1fr);
+  align-items: start;
+}
+
+.sidebar-card {
+  width: 100%;
+  padding: 18px;
+  overflow: hidden;
+}
+
+.sidebar-title-row {
+  margin-bottom: 2px;
+}
+
+.viewer-card {
+  width: 100%;
+  height: auto;
+  min-height: calc(100vh - 116px);
+  overflow: hidden;
+}
+
+.viewer-header,
+.slide-tray,
+.wsi-annotation-workspace {
+  width: 100%;
+}
+
+@media (max-width: 1100px) {
+  .columns { grid-template-columns: 280px minmax(0, 1fr); }
+}
+
+@media (max-width: 820px) {
+  .columns { grid-template-columns: minmax(0, 1fr); }
+  .viewer-card { min-height: 620px; }
+}

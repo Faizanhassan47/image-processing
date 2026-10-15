@@ -237,6 +237,19 @@
   border-color: var(--primary-hover);
 }
 
+.admin-section-heading { display: flex; align-items: flex-start; gap: var(--space-3); margin-bottom: var(--space-7); color: var(--color-primary); }
+.admin-section-heading h3 { margin: 0; color: var(--color-text); }
+.admin-section-heading p { margin: 3px 0 0; color: var(--color-text-muted); font-size: var(--font-size-xs); }
+.admin-filters { display: grid; grid-template-columns: minmax(180px, 1fr) 150px; gap: var(--space-2); margin-bottom: var(--space-3); }
+.admin-filters input, .admin-filters select { width: 100%; height: var(--control-height); color: var(--color-text); background: var(--color-surface); border: 1px solid var(--color-border-strong); border-radius: var(--radius-sm); }
+.admin-search { position: relative; }
+.admin-search svg { position: absolute; top: 11px; left: 11px; color: var(--color-text-muted); }
+.admin-search input { padding-left: 34px; }
+.account-status { display: inline-flex; padding: 3px 7px; color: var(--color-text-muted); background: var(--color-surface-subtle); border-radius: var(--radius-pill); font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); }
+.account-status--active { color: var(--color-success-text); background: var(--color-success-soft); }
+.action-buttons button { display: inline-flex; align-items: center; gap: var(--space-1); white-space: nowrap; }
+.btn-delete:disabled { opacity: .4; cursor: not-allowed; }
+
 .reset-password-form p {
   margin: 0 0 var(--space-6);
   color: var(--text-muted);
@@ -320,4 +333,49 @@
   .users-list-container {
     padding: var(--space-6);
   }
+  .admin-filters { grid-template-columns: 1fr; }
+}
+
+/* Route-level admin composition. These selectors intentionally live with the
+   feature so workspace route styles cannot leak into this page after navigation. */
+.admin-page-layout { min-height: 100vh; color: var(--color-text); background: var(--color-background); overflow-x: clip; }
+.admin-page-layout .admin-page-header { width: 100%; min-height: 72px; margin: 0; padding: 0 clamp(20px, 3vw, 48px); color: var(--color-text); background: var(--color-surface); border-bottom: 1px solid var(--color-border); box-shadow: var(--shadow-sm); }
+.admin-page-layout .admin-page-header .header-brand { display: flex; align-items: center; }
+.admin-page-layout .admin-page-header h1 { margin: 0; color: var(--color-text); font-size: 1.2rem; letter-spacing: -.015em; }
+.admin-page-layout .admin-page-header .route-link { min-height: 38px; padding: 0 14px; color: var(--color-text); background: var(--color-surface); border: 1px solid var(--color-border-strong); border-radius: var(--radius-sm); }
+.admin-page-layout .admin-page-header .route-link:hover { color: var(--color-primary); background: var(--color-primary-soft); border-color: var(--color-border-strong); }
+.admin-page-content { display: block; width: 100%; padding: 32px clamp(20px, 3vw, 48px) 48px; }
+.admin-page-inner { width: 100%; max-width: 1500px; margin: 0 auto; }
+.admin-panel { animation: none; }
+.admin-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-bottom: 20px; }
+.admin-summary article { min-height: 88px; display: flex; flex-direction: column; justify-content: center; gap: 5px; padding: 18px 20px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); }
+.admin-summary span { color: var(--color-text-muted); font-size: var(--font-size-sm); }
+.admin-summary strong { color: var(--color-text); font-size: 1.55rem; line-height: 1; }
+.admin-layout { grid-template-columns: minmax(320px, 380px) minmax(0, 1fr); gap: 20px; }
+.user-form-container, .users-list-container { padding: 22px; background: var(--color-surface); border-color: var(--color-border); box-shadow: var(--shadow-sm); }
+.admin-section-heading { min-height: 42px; margin-bottom: 20px; }
+.admin-section-heading h3 { font-size: 1rem; }
+.admin-section-heading p { font-size: .78rem; }
+.user-form label { color: var(--color-text); }
+.user-form input, .user-form select, .admin-filters input, .admin-filters select { min-height: 42px; color: var(--color-text); background: var(--color-surface); border-color: var(--color-border-strong); }
+.user-form input:focus, .user-form select:focus, .admin-filters input:focus, .admin-filters select:focus { border-color: var(--color-primary); box-shadow: var(--focus-ring); }
+.admin-panel .btn-primary { min-height: 42px; padding-inline: 18px; }
+.users-table-wrap { border-color: var(--color-border); }
+.users-table { min-width: 820px; }
+.users-table th { height: 42px; padding: 0 14px; color: var(--color-text-muted); background: var(--color-surface-subtle); font-size: .7rem; }
+.users-table td { height: 56px; padding: 8px 14px; color: var(--color-text); }
+.users-table tbody tr:hover { background: var(--color-surface-hover); }
+.role-select { min-height: 32px; padding: 0 28px 0 10px; color: var(--color-primary); background: var(--color-primary-soft); border-color: var(--color-border-strong); }
+.btn-secondary, .btn-delete { display: inline-flex; min-height: 32px; align-items: center; gap: 5px; padding: 0 10px; }
+
+@media (max-width: 1050px) {
+  .admin-layout { grid-template-columns: 1fr; }
+  .user-form-container { max-width: none; }
+}
+@media (max-width: 680px) {
+  .admin-page-layout .admin-page-header { align-items: flex-start; flex-direction: column; padding-block: 14px; }
+  .admin-page-content { padding: 18px 12px 32px; }
+  .admin-summary { grid-template-columns: 1fr; }
+  .admin-summary article { min-height: 72px; }
+  .user-form-container, .users-list-container { padding: 16px; }
 }

@@ -4,6 +4,14 @@
   background: var(--bg-canvas);
 }
 
+.wsi-stage { position: relative; display: flex; flex: 1; min-height: 0; }
+.wsi-stage .wsi-viewer { width: 100%; height: 100%; }
+.annotation-svg-overlay { position: absolute; inset: 0; z-index: 10; width: 100%; height: 100%; pointer-events: none; }
+.annotation-svg-overlay.drawing-active, .annotation-shape { pointer-events: auto; }
+.annotation-shape { cursor: pointer; }
+.v-divider { width: 1px; height: 24px; margin: 0 var(--space-2); background: var(--color-border); }
+.annotation-swatch svg { display: block; width: 8px; height: 24px; }
+
 .wsi-controls {
   display: flex;
   align-items: center;
@@ -258,5 +266,137 @@
   .wsi-annotation-workspace {
     grid-template-rows: minmax(360px, 1fr) auto;
   }
+}
+
+/* Final viewer presentation overrides shared legacy theme rules. */
+.wsi-annotation-workspace {
+  grid-template-columns: minmax(0, 1fr) clamp(260px, 19vw, 310px);
+  min-width: 0;
+  min-height: 620px;
+  gap: 12px;
+}
+
+.viewer-canvas-container {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--bg-canvas);
+}
+
+.viewer-hint-bar {
+  min-height: 44px;
+  padding: 7px 10px 7px 14px;
+  gap: 12px;
+  background: var(--color-surface-subtle);
+  border-color: var(--color-border);
+}
+
+.viewer-hint-bar > span {
+  flex: 1 1 auto;
+  min-width: 130px;
+  color: var(--color-text-muted);
+  font-size: .76rem;
+}
+
+.wsi-controls {
+  flex: 0 1 auto;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.wsi-controls .btn-control-secondary {
+  min-height: 30px;
+  padding: 5px 9px;
+  color: var(--color-text-muted);
+  background: var(--color-surface);
+  border-color: var(--color-border);
+}
+
+.wsi-controls .btn-control-secondary:hover {
+  color: var(--color-text);
+  background: var(--color-surface-hover);
+  border-color: var(--color-border-strong);
+}
+
+.wsi-controls .tool-active,
+.wsi-controls .tool-active:hover {
+  color: var(--color-primary-hover);
+  background: var(--color-primary-soft);
+  border-color: var(--color-primary);
+}
+
+.annotation-panel,
+.annotation-panel-heading {
+  color: var(--color-text);
+  background: var(--color-surface);
+  border-color: var(--color-border);
+}
+
+.annotation-panel {
+  width: 100%;
+  min-width: 0;
+  border-radius: var(--radius-md);
+}
+
+.annotation-panel-heading {
+  min-height: 54px;
+  padding: 12px 14px;
+}
+
+.annotation-panel-heading h3 {
+  margin: 0 0 3px;
+  color: var(--color-text);
+}
+
+.annotation-panel-heading span,
+.annotation-empty {
+  color: var(--color-text-muted);
+}
+
+.annotation-list {
+  padding: 6px;
+}
+
+.annotation-item {
+  border-color: var(--color-border);
+}
+
+.annotation-open {
+  color: var(--color-text);
+  border-radius: var(--radius-sm);
+}
+
+.annotation-open:hover {
+  background: var(--color-surface-hover);
+}
+
+.annotation-actions button {
+  color: var(--color-text-muted);
+}
+
+.annotation-actions button:hover {
+  color: var(--color-primary-hover);
+  background: var(--color-surface-hover);
+}
+
+@media (max-width: 1180px) {
+  .wsi-annotation-workspace {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(520px, 1fr) auto;
+  }
+
+  .annotation-panel { max-height: 260px; }
+}
+
+@media (max-width: 640px) {
+  .wsi-annotation-workspace {
+    min-height: 500px;
+    grid-template-rows: minmax(420px, 1fr) auto;
+  }
+
+  .viewer-hint-bar { align-items: flex-start; }
+  .wsi-controls { justify-content: flex-start; }
 }
 

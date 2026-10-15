@@ -2,15 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import {
   Calendar, Edit3, FileImage, Layers, ClipboardCheck, History, Microscope, Columns, X,
-  Plus, Search, Upload, UserRound, LogOut
+  Plus, Search, Upload, UserRound, LogOut, ChevronDown
 } from 'lucide-react';
 import Empty from '../../components/EmptyState/EmptyState';
 import Field from '../../components/Field/Field';
 import ReportEditor from '../../components/ReportEditor/ReportEditor';
 import SlideViewer from '../../components/SlideViewer/SlideViewer';
-import AdminPanel from '../../components/AdminPanel/AdminPanel';
 import './PathologyWorkspace.css';
-import '../../styles/clinical.css?workspace';
 import Login from '../auth/Login';
 import { useAuth } from '../auth/AuthProvider';
 import { API_BASE_URL as API } from '../../config';
@@ -58,6 +56,8 @@ export default function App() {
   const [isBackendHealthy, setIsBackendHealthy] = useState(null);
   const [wsiLimitMb, setWsiLimitMb] = useState(2048);
   const [showSlideForm, setShowSlideForm] = useState(false);
+  const [showCreateCase, setShowCreateCase] = useState(false);
+  const [inspectorTab, setInspectorTab] = useState('review');
   const [editingSlideId, setEditingSlideId] = useState(null);
   const [zoom, setZoom] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -119,6 +119,7 @@ export default function App() {
     setCompareSlideId(null);
     setEditingSlideId(null);
     setShowSlideForm(false);
+    setInspectorTab('review');
     resetRasterView();
   };
 
@@ -285,9 +286,15 @@ export default function App() {
   }
 
   const viewerError = useCallback((text) => toast.error(text), []);
+  const reportMessage = useCallback(({ text, type }) => type === 'error' ? toast.error(text) : toast.success(text), []);
   const { filteredCases, reviewers } = useCaseWorklist(cases, {
     searchQuery, worklistTab, statusFilter, reviewerFilter, user,
   });
+  const formatDate = (value) => {
+    if (!value) return 'Date unavailable';
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+  };
 
   if (!user) return <Login />;
   return (
@@ -298,25 +305,29 @@ export default function App() {
           <div><div className="title-row"><h1>Pathology workspace</h1></div>
             <p className="subtitle">Review cases and compare slides.</p></div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div className="header-actions">
           {user?.role === 'Admin' && (
             <Link to="/admin" className="btn-control-secondary admin-route-link">
-              Admin Dashboard
+              Admin
             </Link>
           )}
           <div className="backend-indicator">
             <span className={`status-dot ${isBackendHealthy ? 'online' : isBackendHealthy === false ? 'offline' : 'checking'}`} />
             <span>{isBackendHealthy ? 'Connected' : isBackendHealthy === false ? 'Offline' : 'Connecting…'}</span>
           </div>
-          <button className="btn-control-secondary" onClick={logout} title="Log out">
+          <div className="user-context"><span className="user-avatar" aria-hidden="true">{(user.display_name || user.username).slice(0, 1).toUpperCase()}</span><span><strong>{user.display_name || user.username}</strong><small>{user.role}</small></span></div>
+          <button className="icon-button" onClick={logout} title="Log out" aria-label="Log out">
             <LogOut size={16} />
           </button>
         </div>
       </header>
 
-      {worklistTab === 'Admin Panel' ? <AdminPanel API={API} /> : <>
-      <section className="card form-card">
-        <div className="form-header"><h2>New case</h2><p>Add the case details now. The first slide is optional.</p></div>
+      <>
+      <section className={`card form-card ${showCreateCase ? 'form-card--open' : ''}`}>
+        <button type="button" className="form-card-toggle" onClick={() => setShowCreateCase((value) => !value)} aria-expanded={showCreateCase}>
+          <span><Plus size={17} /><span><strong>Create case</strong><small>Add case details and an optional first slide.</small></span></span><ChevronDown size={18} />
+        </button>
+        {showCreateCase && <>
         <form onSubmit={createCase} className="upload-form">
           <div className="form-grid case-create-grid">
             <Field label="Case ID *"><input name="case_id" required maxLength={80} placeholder="DEMO-001" /></Field>
@@ -325,20 +336,15 @@ export default function App() {
             <Field label="Optional first slide"><input name="image" type="file" accept="image/jpeg,image/png,.svs" /></Field>
             <button className="btn-primary" disabled={busy}><Plus size={18} /> Create case</button>
           </div>
-        </form>
-        
+        </form></>}
       </section>
 
       <section className="columns case-workspace">
         <aside className="sidebar-card">
           <div className="sidebar-title-row"><h2>Cases</h2><span className="case-count-pill">{cases.length}</span></div>
-          <div className="worklist-tabs" style={{ display: 'flex', gap: '5px', marginBottom: '10px', flexWrap: 'wrap' }}>
+          <div className="worklist-tabs" role="tablist" aria-label="Case worklists">
             {['My Cases', 'Unassigned', 'Awaiting Review', 'Completed'].map((tab) => (
-              <button key={tab} type="button" style={{
-                padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border-interactive)',
-                background: worklistTab === tab ? 'var(--accent-color)' : 'transparent',
-                color: worklistTab === tab ? 'var(--text-on-primary)' : 'var(--text-muted)', cursor: 'pointer', fontSize: '0.8rem'
-              }} onClick={() => setWorklistTab(tab)}>{tab}</button>
+              <button key={tab} type="button" role="tab" aria-selected={worklistTab === tab} className={worklistTab === tab ? 'worklist-tab worklist-tab--active' : 'worklist-tab'} onClick={() => setWorklistTab(tab)}>{tab}</button>
             ))}
           </div>
           <div className="search-bar"><Search size={16} className="search-icon" />
@@ -353,14 +359,15 @@ export default function App() {
           </div>
           <div className="cases-list-scroll">
             {!cases.length ? <Empty icon={FileImage} title="No cases yet" text="Create a case above to begin." /> :
+              !filteredCases.length ? <Empty icon={Search} title="No matching cases" text="Try another worklist or clear the filters." /> :
               filteredCases.map((item) => <button type="button" key={item.id}
-                className={`case ${item.id === selectedCaseId ? 'case-active' : ''}`} onClick={() => selectCase(item)}>
+                className={`case ${item.id === selectedCaseId ? 'case-active' : ''}`} aria-pressed={item.id === selectedCaseId} onClick={() => selectCase(item)}>
                 <div className="case-item-header"><strong className="case-id">{item.case_id}</strong>
                   <span className="case-count-pill">{item.slide_count} slide{item.slide_count === 1 ? '' : 's'}</span></div>
                 <p className="case-desc">{item.description || 'No case description'}</p>
                 <div className="case-review-summary"><span className={`review-status status-${(item.status || 'New').toLowerCase().replace(' ', '-')}`}>{item.status || 'New'}</span>
                   <span><UserRound size={12} /> {item.reviewer || 'Unassigned'}</span></div>
-                <div className="case-footer"><Calendar size={12} /> {item.created_at}</div>
+                <div className="case-footer"><Calendar size={12} /> {formatDate(item.created_at)}</div>
               </button>)}
           </div>
         </aside>
@@ -374,7 +381,12 @@ export default function App() {
                 <Upload size={15} /> Add slide</button>
             </div>
 
-            <section className="review-panel" key={`review-${selectedCase.id}`}>
+            <aside className="case-inspector">
+              <div className="inspector-tabs" role="tablist" aria-label="Case details">
+                <button type="button" role="tab" aria-selected={inspectorTab === 'review'} className={inspectorTab === 'review' ? 'inspector-tab inspector-tab--active' : 'inspector-tab'} onClick={() => setInspectorTab('review')}>Review and QC</button>
+                <button type="button" role="tab" aria-selected={inspectorTab === 'report'} className={inspectorTab === 'report' ? 'inspector-tab inspector-tab--active' : 'inspector-tab'} onClick={() => setInspectorTab('report')}>Report</button>
+              </div>
+            {inspectorTab === 'review' && <section className="review-panel" key={`review-${selectedCase.id}`}>
               <div className="review-panel-title"><ClipboardCheck size={17} /><div><h3>Case review</h3>
                 <span>Names are recorded as entered and do not provide authentication.</span></div></div>
               <div className="review-controls">
@@ -399,17 +411,18 @@ export default function App() {
               <div className="review-records">
                 <details open><summary>Notes ({(selectedCase.review_notes || []).length})</summary>
                   {!(selectedCase.review_notes || []).length ? <p className="review-empty">No review notes yet.</p> :
-                    selectedCase.review_notes.map((note) => <article key={note.id}><strong>{note.author}</strong><time>{note.created_at}</time><p>{note.note}</p></article>)}
+                    selectedCase.review_notes.map((note) => <article key={note.id}><strong>{note.author}</strong><time dateTime={note.created_at}>{formatDate(note.created_at)}</time><p>{note.note}</p></article>)}
                 </details>
                 <details><summary><History size={13} /> History ({(selectedCase.review_history || []).length})</summary>
                   {!(selectedCase.review_history || []).length ? <p className="review-empty">No workflow changes yet.</p> :
-                    selectedCase.review_history.map((entry) => <article key={entry.id}><strong>{entry.actor}</strong><time>{entry.created_at}</time>
+                    selectedCase.review_history.map((entry) => <article key={entry.id}><strong>{entry.actor}</strong><time dateTime={entry.created_at}>{formatDate(entry.created_at)}</time>
                       <p>{entry.change_type === 'status' ? 'Status' : 'Reviewer'}: {entry.previous_value || 'Unassigned'} → {entry.new_value || 'Unassigned'}</p></article>)}
                 </details>
               </div>
-            </section>
+            </section>}
 
-            <ReportEditor selectedCase={selectedCase} selectSlide={selectSlide} setMessage={({ text, type }) => type === 'error' ? toast.error(text) : toast.success(text)} />
+            {inspectorTab === 'report' && <ReportEditor selectedCase={selectedCase} selectSlide={selectSlide} setMessage={reportMessage} />}
+            </aside>
 
             {showSlideForm && <form className="add-slide-form" onSubmit={addSlide}>
               <Field label="Slide label *"><input name="label" required maxLength={120} placeholder="Slide A H&E" /></Field>
@@ -425,14 +438,14 @@ export default function App() {
               <div className="slide-tray" aria-label="Case slide tray">
                 {selectedCase.slides.map((slide) => <div key={slide.id} className={`tray-item ${slide.id === selectedSlideId ? 'tray-active' : ''} ${slide.id === compareSlideId ? 'tray-compare-active' : ''}`}>
                   <button type="button" className="tray-select" onClick={() => selectSlide(slide)}>
-                    <img src={slide.thumbnail_url} alt="" loading="lazy" />
+                    <img src={slide.thumbnail_url} alt={`${slide.label} thumbnail`} loading="lazy" />
                     <span className="tray-copy"><strong>{slide.label}</strong><small>{slide.stain || 'Unspecified stain'}</small>
                       <span><b>{slide.file_type === 'wsi' ? 'WSI' : slide.format}</b><i className={`upload-state ${slide.upload_state}`}>{slide.upload_state}</i>
                       {slide.qc_status && <span className={`qc-badge qc-${slide.qc_status.replace(/\s+/g, '-').toLowerCase()}`}>{slide.qc_status}</span>}
                       </span></span>
                   </button>
-                  <button type="button" className="tray-compare" title={compareSlideId === slide.id ? 'Close compare' : 'Compare side-by-side'} onClick={() => setCompareSlideId(c => c === slide.id ? null : slide.id)}><Columns size={14} /></button>
-                  <button type="button" className="tray-edit" title="Edit slide details" onClick={() => setEditingSlideId(slide.id)}><Edit3 size={14} /></button>
+                  <button type="button" className="tray-compare" aria-label={compareSlideId === slide.id ? `Stop comparing ${slide.label}` : `Compare ${slide.label}`} aria-pressed={compareSlideId === slide.id} title={compareSlideId === slide.id ? 'Close compare' : 'Compare side-by-side'} onClick={() => setCompareSlideId(c => c === slide.id ? null : slide.id)}><Columns size={14} /></button>
+                  <button type="button" className="tray-edit" aria-label={`Edit ${slide.label}`} title="Edit slide details" onClick={() => setEditingSlideId(slide.id)}><Edit3 size={14} /></button>
                 </div>)}
               </div>
 
@@ -445,7 +458,7 @@ export default function App() {
               </form>}
 
               {selectedSlide && editingSlideId === selectedSlide.id && ['Technician', 'Admin'].includes(user?.role) && <form className="edit-slide-form qc-form" onSubmit={(event) => saveSlideQc(event, selectedSlide)}>
-                <h4 style={{marginTop: 0, marginBottom: '10px'}}>Quality Control</h4>
+                <h4 className="qc-title">Quality control</h4>
                 <Field label="Status">
                   <select name="qc_status" defaultValue={selectedSlide.qc_status || ''}>
                     <option value="">None</option>
@@ -454,7 +467,7 @@ export default function App() {
                     <option value="Cannot assess">Cannot assess</option>
                   </select>
                 </Field>
-                <div style={{display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '10px'}}>
+                <div className="qc-defects">
                   <label><input type="checkbox" name="qc_missing_tissue" defaultChecked={selectedSlide.qc_missing_tissue} /> Missing tissue</label>
                   <label><input type="checkbox" name="qc_blur" defaultChecked={selectedSlide.qc_blur} /> Blur</label>
                   <label><input type="checkbox" name="qc_scan_artifact" defaultChecked={selectedSlide.qc_scan_artifact} /> Scan artifact</label>
@@ -472,7 +485,7 @@ export default function App() {
 
               {selectedSlide && compareSlideId && <div className="compare-container">
                 <div className="compare-toolbar">
-                  <label><input type="checkbox" checked={syncViews} onChange={e => setSyncViews(e.target.checked)} /> Sync Views</label>
+                  <label className="toggle-control"><input type="checkbox" checked={syncViews} onChange={e => setSyncViews(e.target.checked)} /><span>Synchronize navigation</span></label>
                   <button className="btn-control-secondary" onClick={() => setCompareSlideId(null)}><X size={15} /> Close Compare</button>
                 </div>
                 <div className="compare-panels">
@@ -496,7 +509,7 @@ export default function App() {
           </>}
         </section>
       </section>
-    </>}
+    </>
     </main>
   );
 }

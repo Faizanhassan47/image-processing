@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import toast from 'react-hot-toast';
-import { UserPlus, Users, KeyRound, ShieldAlert } from 'lucide-react';
+import { UserPlus, Users, KeyRound, ShieldAlert, Search } from 'lucide-react';
 import './AdminPanel.css';
-import '../../styles/clinical.css?admin';
 import { useAuth } from '../../modules/auth/AuthProvider';
 import Modal from '../Modal/Modal';
 import { apiFetch } from '../../api';
@@ -21,6 +20,10 @@ export default function AdminPanel({ API }) {
   const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
   const passwordInputRef = useRef(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState('All');
+  const visibleUsers = users.filter((item) => (roleFilter === 'All' || item.role === roleFilter)
+    && `${item.username} ${item.display_name}`.toLowerCase().includes(searchQuery.toLowerCase()));
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -30,7 +33,7 @@ export default function AdminPanel({ API }) {
       } else {
         toast.error('Failed to load users');
       }
-    } catch (error) {
+    } catch {
       toast.error('Error loading users');
     }
   }, [API]);
@@ -64,7 +67,7 @@ export default function AdminPanel({ API }) {
       } else {
         toast.error(data.detail || 'Failed to create user');
       }
-    } catch (error) {
+    } catch {
       toast.error('Error connecting to server');
     }
   };
@@ -82,7 +85,7 @@ export default function AdminPanel({ API }) {
         const data = await response.json();
         toast.error(data.detail || 'Failed to delete user');
       }
-    } catch (error) {
+    } catch {
       toast.error('Error connecting to server');
     }
   };
@@ -102,7 +105,7 @@ export default function AdminPanel({ API }) {
         const data = await response.json();
         toast.error(data.detail || 'Failed to update role');
       }
-    } catch (error) {
+    } catch {
       toast.error('Error connecting to server');
     }
   };
@@ -140,7 +143,7 @@ export default function AdminPanel({ API }) {
         const data = await response.json();
         toast.error(data.detail || 'Failed to reset password');
       }
-    } catch (error) {
+    } catch {
       toast.error('Error connecting to server');
     } finally {
       setIsResettingPassword(false);
@@ -153,11 +156,16 @@ export default function AdminPanel({ API }) {
 
   return (
     <div className="admin-panel">
+      <section className="admin-summary" aria-label="User account summary">
+        <article><span>Total accounts</span><strong>{users.length}</strong></article>
+        <article><span>Administrators</span><strong>{users.filter((item) => item.role === 'Admin').length}</strong></article>
+        <article><span>Active accounts</span><strong>{users.filter((item) => item.is_active).length}</strong></article>
+      </section>
       <div className="admin-layout">
         <div className="user-form-container">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '18px' }}>
-            <UserPlus size={18} color="var(--primary)" />
-            <h3 style={{ margin: 0 }}>Create New User</h3>
+          <div className="admin-section-heading">
+            <UserPlus size={18} />
+            <div><h3>Create user</h3><p>Provision an authorized local account.</p></div>
           </div>
           <form className="user-form" onSubmit={handleCreateUser}>
             <div className="form-group">
@@ -186,9 +194,13 @@ export default function AdminPanel({ API }) {
         </div>
 
         <div className="users-list-container">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '18px' }}>
-            <Users size={18} color="var(--primary)" />
-            <h3 style={{ margin: 0 }}>Existing Users</h3>
+          <div className="admin-section-heading">
+            <Users size={18} />
+            <div><h3>Existing users</h3><p>{users.length} configured account{users.length === 1 ? '' : 's'}</p></div>
+          </div>
+          <div className="admin-filters">
+            <label className="admin-search"><Search size={15} /><span className="sr-only">Search users</span><input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search users" /></label>
+            <label><span className="sr-only">Filter users by role</span><select value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}><option>All</option><option>Admin</option><option>Pathologist</option><option>Technician</option><option>Viewer</option></select></label>
           </div>
           <div className="users-table-wrap">
             <table className="users-table">
@@ -198,11 +210,13 @@ export default function AdminPanel({ API }) {
                   <th>Username</th>
                   <th>Display Name</th>
                   <th>Role</th>
-                  <th>Action</th>
+                  <th>Status</th>
+                  <th>Last login</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {users.map(u => (
+                {visibleUsers.map(u => (
                   <tr key={u.id}>
                     <td>{u.id}</td>
                     <td>{u.username}</td>
@@ -219,19 +233,21 @@ export default function AdminPanel({ API }) {
                         <option value="Viewer">Viewer</option>
                       </select>
                     </td>
+                    <td><span className={u.is_active ? 'account-status account-status--active' : 'account-status'}>{u.is_active ? 'Active' : 'Inactive'}</span></td>
+                    <td>{u.last_login ? new Date(u.last_login).toLocaleString() : 'Never'}</td>
                     <td className="action-buttons">
                       <button type="button" className="btn-secondary" title="Reset Password" onClick={() => openPasswordReset(u)}>
-                        <KeyRound size={14} style={{ marginRight: '4px' }} /> Reset
+                        <KeyRound size={14} /> Reset
                       </button>
-                      <button type="button" className="btn-delete" title="Delete User" onClick={() => setPendingAction({ type: 'delete', user: u })}>
-                        <ShieldAlert size={14} style={{ marginRight: '4px' }} /> Delete
+                      <button type="button" className="btn-delete" title="Delete User" disabled={u.username === user?.username} onClick={() => setPendingAction({ type: 'delete', user: u })}>
+                        <ShieldAlert size={14} /> Delete
                       </button>
                     </td>
                   </tr>
                 ))}
-                {users.length === 0 && (
+                {visibleUsers.length === 0 && (
                   <tr>
-                    <td className="empty-users" colSpan="5">No users found.</td>
+                    <td className="empty-users" colSpan="7">No users match the current filters.</td>
                   </tr>
                 )}
               </tbody>

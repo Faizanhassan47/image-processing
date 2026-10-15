@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import OpenSeadragon from 'openseadragon';
-import { Edit3, Eye, EyeOff, Expand, Maximize2, Minimize2, MousePointer2, RotateCcw, Square, Trash2, PenTool, MoveDiagonal } from 'lucide-react';
+import { Edit3, Eye, EyeOff, Expand, Maximize2, Minimize2, RotateCcw, Square, Trash2, PenTool, MoveDiagonal } from 'lucide-react';
 import '../SlideViewer/SlideViewer.css';
 import './WsiViewer.css';
 import { API_BASE_URL as API } from '../../config';
@@ -432,9 +432,9 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
               <MoveDiagonal size={15} />
             </button>
             
-            <div className="v-divider" style={{width: '1px', background: '#ccc', margin: '0 8px'}} />
+            <div className="v-divider" aria-hidden="true" />
             
-            <button type="button" className="btn-control-secondary" onClick={() => setVisible((value) => !value)}>
+            <button type="button" className="btn-control-secondary" aria-pressed={!visible} onClick={() => setVisible((value) => !value)}>
               {visible ? <EyeOff size={15} /> : <Eye size={15} />} {visible ? 'Hide' : 'Show'}
             </button>
             <button type="button" className="btn-control-secondary" onClick={fit}><Maximize2 size={15} /> Fit</button>
@@ -445,10 +445,10 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
           </div>
         </div>
         
-        <div style={{ position: 'relative', flex: 1 }}>
-          <div className={`wsi-viewer ${drawMode ? 'drawing-mode' : ''}`} ref={elementRef} aria-label={`Whole-slide viewer for ${slide.label}`} style={{ width: '100%', height: '100%' }} />
+        <div className="wsi-stage">
+          <div className={`wsi-viewer ${drawMode ? 'drawing-mode' : ''}`} ref={elementRef} aria-label={`Whole-slide viewer for ${slide.label}`} />
           
-          <svg ref={svgOverlayRef} className={`annotation-svg-overlay ${drawMode ? 'drawing-active' : ''}`} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: drawMode ? 'auto' : 'none', zIndex: 10 }}>
+          <svg ref={svgOverlayRef} className={`annotation-svg-overlay ${drawMode ? 'drawing-active' : ''}`}>
              <defs>
                <marker id="arrowhead-draft" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
                  <polygon points="0 0, 10 3.5, 0 7" fill="#e85d75" />
@@ -460,7 +460,7 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
                ))}
              </defs>
              {visible && annotations.map((annotation) => (
-                <g key={annotation.id} style={{ pointerEvents: 'auto', cursor: 'pointer' }} onClick={() => goTo(annotation)}>
+                <g key={annotation.id} className="annotation-shape" onClick={() => goTo(annotation)}>
                    <title>{annotation.label}</title>
                    {renderShape(annotation, annotation.color, false)}
                 </g>
@@ -480,7 +480,7 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
           <p className="annotation-empty">No annotations yet. Choose a tool to mark a region.</p> :
           <div className="annotation-list">{annotations.map((annotation) => <div className="annotation-item" key={annotation.id}>
             <button type="button" className="annotation-open" onClick={() => goTo(annotation)}>
-              <span className="annotation-swatch" style={{ background: annotation.color }} />
+              <span className="annotation-swatch"><svg aria-hidden="true" viewBox="0 0 8 24"><rect width="8" height="24" rx="3" fill={annotation.color} /></svg></span>
               <span><strong>{annotation.label}</strong><small>{annotation.note || 'No note'}</small></span>
             </button>
             <div className="annotation-actions">

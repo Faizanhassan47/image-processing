@@ -1,5 +1,6 @@
 
 :root {
+  color-scheme: dark;
   --font-primary: 'Inter', system-ui, -apple-system, sans-serif;
   --font-display: 'Inter', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
@@ -68,6 +69,12 @@
   --space-message-inline: 12px;
   --space-action-inline: 10px;
 
+  --spacing-xs: var(--space-1);
+  --spacing-sm: var(--space-2);
+  --spacing-md: var(--space-6);
+  --spacing-lg: var(--space-10);
+  --spacing-xl: 32px;
+
   --font-size-xs: 0.75rem;
   --font-size-sm: 0.8125rem;
   --font-size-action: 0.8125rem;
@@ -91,4 +98,31 @@
   --transition-fast: 150ms ease;
   --active-press-offset: 1px;
   --focus-ring-width: 2px;
+
+  /* Semantic enterprise design tokens */
+  --color-primary: #5fb8b0;
+  --color-primary-hover: #77cbc3;
+  --color-primary-soft: #19312f;
+  --color-background: #0d1215;
+  --color-surface: #151b1f;
+  --color-surface-subtle: #1a2227;
+  --color-surface-elevated: #20292e;
+  --color-surface-hover: #202b30;
+  --color-text: #edf2f4;
+  --color-text-muted: #a5b1b7;
+  --color-border: #2d383e;
+  --color-border-strong: #46555d;
+  --color-success: #3ba879;
+  --color-success-text: #82d4ac;
+  --color-success-soft: #173027;
+  --color-warning: #d39a3c;
+  --color-warning-text: #e8c578;
+  --color-warning-soft: #332817;
+  --color-danger: #d65c61;
+  --color-danger-text: #f09a9d;
+  --color-danger-soft: #381f22;
+  --color-info-soft: #172a33;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.32);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.28);
+  --focus-ring: 0 0 0 3px rgba(95, 184, 176, 0.2);
 }
