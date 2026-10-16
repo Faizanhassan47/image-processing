@@ -346,6 +346,7 @@
 .admin-page-layout .admin-page-header .route-link:hover { color: var(--color-primary); background: var(--color-primary-soft); border-color: var(--color-border-strong); }
 .admin-page-content { display: block; width: 100%; padding: 32px clamp(20px, 3vw, 48px) 48px; }
 .admin-page-inner { width: 100%; max-width: 1500px; margin: 0 auto; }
+.admin-route-nav { display: flex; align-items: center; gap: var(--space-2); margin-left: auto; }
 .admin-panel { animation: none; }
 .admin-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-bottom: 20px; }
 .admin-summary article { min-height: 88px; display: flex; flex-direction: column; justify-content: center; gap: 5px; padding: 18px 20px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); }
@@ -374,6 +375,7 @@
 }
 @media (max-width: 680px) {
   .admin-page-layout .admin-page-header { align-items: flex-start; flex-direction: column; padding-block: 14px; }
+  .admin-route-nav { width: 100%; margin-left: 0; overflow-x: auto; }
   .admin-page-content { padding: 18px 12px 32px; }
   .admin-summary { grid-template-columns: 1fr; }
   .admin-summary article { min-height: 72px; }

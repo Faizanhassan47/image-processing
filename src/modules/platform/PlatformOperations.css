@@ -28,5 +28,9 @@
 .ops-status--queued, .ops-status--running, .ops-status--processing, .ops-status--received, .ops-status--research { color: var(--color-warning); }
 .ops-empty, .ops-loading { color: var(--color-text-muted); text-align: center; padding: var(--spacing-xl); }
 .ops-card > .ops-empty { display: grid; min-height: 76px; place-items: center; }
+.ops-muted { color: var(--color-text-muted); }
+.ops-validation-summary { display: grid; gap: var(--spacing-xs); }
+.ops-validation-summary small { color: var(--color-text-muted); white-space: nowrap; }
+.ops-validation-error { color: var(--color-danger); font-weight: 600; }
 @media (max-width: 900px) { .ops-metrics { grid-template-columns: repeat(2, 1fr); } .ops-grid { grid-template-columns: 1fr; } .ops-card--wide { grid-column: auto; } }
 @media (max-width: 560px) { .ops-page { padding: var(--spacing-md); } .ops-heading { flex-direction: column; } .ops-heading-actions { width: 100%; justify-content: flex-start; } .ops-metrics { grid-template-columns: 1fr; } }

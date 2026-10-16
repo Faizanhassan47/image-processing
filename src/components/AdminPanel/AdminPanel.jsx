@@ -5,6 +5,7 @@ import './AdminPanel.css';
 import { useAuth } from '../../modules/auth/AuthProvider';
 import Modal from '../Modal/Modal';
 import { apiFetch } from '../../api';
+import { isAdministratorRole, isProtectedSuperAdmin, SYSTEM_ADMIN_ROLE, USER_ROLES } from '../../config/roles';
 
 export default function AdminPanel({ API }) {
   const { user } = useAuth();
@@ -14,7 +15,7 @@ export default function AdminPanel({ API }) {
   const [username, setUsername] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('Technician');
+  const [role, setRole] = useState('Histotechnologist');
   const [passwordResetUser, setPasswordResetUser] = useState(null);
   const [newPassword, setNewPassword] = useState('');
   const [isResettingPassword, setIsResettingPassword] = useState(false);
@@ -150,7 +151,7 @@ export default function AdminPanel({ API }) {
     }
   };
 
-  if (user?.role !== 'Admin') {
+  if (!isAdministratorRole(user?.role)) {
     return <div className="admin-panel error">You do not have permission to view this page.</div>;
   }
 
@@ -158,7 +159,7 @@ export default function AdminPanel({ API }) {
     <div className="admin-panel">
       <section className="admin-summary" aria-label="User account summary">
         <article><span>Total accounts</span><strong>{users.length}</strong></article>
-        <article><span>Administrators</span><strong>{users.filter((item) => item.role === 'Admin').length}</strong></article>
+        <article><span>Administrators</span><strong>{users.filter((item) => item.role === SYSTEM_ADMIN_ROLE).length}</strong></article>
         <article><span>Active accounts</span><strong>{users.filter((item) => item.is_active).length}</strong></article>
       </section>
       <div className="admin-layout">
@@ -179,10 +180,7 @@ export default function AdminPanel({ API }) {
             <div className="form-group">
               <label htmlFor="new-role">Role</label>
               <select id="new-role" value={role} onChange={e => setRole(e.target.value)}>
-                <option value="Admin">Admin</option>
-                <option value="Pathologist">Pathologist</option>
-                <option value="Technician">Technician</option>
-                <option value="Viewer">Viewer</option>
+                {USER_ROLES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
               </select>
             </div>
             <div className="form-group">
@@ -200,7 +198,7 @@ export default function AdminPanel({ API }) {
           </div>
           <div className="admin-filters">
             <label className="admin-search"><Search size={15} /><span className="sr-only">Search users</span><input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search users" /></label>
-            <label><span className="sr-only">Filter users by role</span><select value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}><option>All</option><option>Admin</option><option>Pathologist</option><option>Technician</option><option>Viewer</option></select></label>
+            <label><span className="sr-only">Filter users by role</span><select value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}><option>All</option>{USER_ROLES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
           </div>
           <div className="users-table-wrap">
             <table className="users-table">
@@ -222,16 +220,13 @@ export default function AdminPanel({ API }) {
                     <td>{u.username}</td>
                     <td>{u.display_name}</td>
                     <td>
-                      <select
+                      {isProtectedSuperAdmin(u.username) ? <span className="role-badge">Super Administrator</span> : <select
                         value={u.role}
                         onChange={(e) => setPendingAction({ type: 'role', user: u, role: e.target.value })}
                         className="role-badge role-select"
                       >
-                        <option value="Admin">Admin</option>
-                        <option value="Pathologist">Pathologist</option>
-                        <option value="Technician">Technician</option>
-                        <option value="Viewer">Viewer</option>
-                      </select>
+                        {USER_ROLES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                      </select>}
                     </td>
                     <td><span className={u.is_active ? 'account-status account-status--active' : 'account-status'}>{u.is_active ? 'Active' : 'Inactive'}</span></td>
                     <td>{u.last_login ? new Date(u.last_login).toLocaleString() : 'Never'}</td>
@@ -239,9 +234,9 @@ export default function AdminPanel({ API }) {
                       <button type="button" className="btn-secondary" title="Reset Password" onClick={() => openPasswordReset(u)}>
                         <KeyRound size={14} /> Reset
                       </button>
-                      <button type="button" className="btn-delete" title="Delete User" disabled={u.username === user?.username} onClick={() => setPendingAction({ type: 'delete', user: u })}>
+                      {!isProtectedSuperAdmin(u.username) && <button type="button" className="btn-delete" title="Delete User" disabled={u.username === user?.username} onClick={() => setPendingAction({ type: 'delete', user: u })}>
                         <ShieldAlert size={14} /> Delete
-                      </button>
+                      </button>}
                     </td>
                   </tr>
                 ))}

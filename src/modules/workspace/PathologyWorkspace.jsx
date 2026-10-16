@@ -1,13 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import {
   Calendar, Edit3, FileImage, Layers, ClipboardCheck, History, Microscope, Columns, X,
-  Plus, Search, Upload, UserRound, LogOut, ChevronDown
+  Plus, Search, Upload, UserRound, LogOut, ChevronDown, Trash2
 } from 'lucide-react';
 import Empty from '../../components/EmptyState/EmptyState';
 import Field from '../../components/Field/Field';
 import ReportEditor from '../../components/ReportEditor/ReportEditor';
 import SlideViewer from '../../components/SlideViewer/SlideViewer';
+import { isAdministratorRole, SYSTEM_ADMIN_ROLE, SUPER_ADMIN_ROLE } from '../../config/roles';
 import './PathologyWorkspace.css';
 import Login from '../auth/Login';
 import { useAuth } from '../auth/AuthProvider';
@@ -15,6 +16,7 @@ import { API_BASE_URL as API } from '../../config';
 import { apiFetch } from '../../api';
 import { Link } from 'react-router-dom';
 import useCaseWorklist from './useCaseWorklist';
+import Modal from '../../components/Modal/Modal';
 
 function normalizeCase(item) {
   return {
@@ -28,15 +30,8 @@ function normalizeCase(item) {
   };
 }
 
-function statusOptions(current) {
-  if (current === 'Reviewed') return ['In Review'];
-  if (current === 'In Review') return ['Reviewed'];
-  return ['In Review'];
-}
-
-function nextStatus(current) {
-  return statusOptions(current)[0];
-}
+const CASE_STATUS_OPTIONS = ['New', 'In Review', 'Reviewed'];
+const MAX_VIEWER_SCREENS = 4;
 
 export default function App() {
   const { user, logout } = useAuth();
@@ -65,20 +60,29 @@ export default function App() {
   const [isDragging, setIsDragging] = useState(false);
   const viewerRef = useRef(null);
 
-  const [compareSlideId, setCompareSlideId] = useState(null);
+  const [compareSlideIds, setCompareSlideIds] = useState([]);
+  const [splitView, setSplitView] = useState(false);
+  const [deleteSlideTarget, setDeleteSlideTarget] = useState(null);
+  const [deleteCaseTarget, setDeleteCaseTarget] = useState(null);
   const [syncViews, setSyncViews] = useState(false);
   const [zoom2, setZoom2] = useState(1);
   const [position2, setPosition2] = useState({ x: 0, y: 0 });
   const [dragStart2, setDragStart2] = useState({ x: 0, y: 0 });
   const [isDragging2, setIsDragging2] = useState(false);
   const viewerRef2 = useRef(null);
+  const viewerRef3 = useRef(null);
+  const viewerRef4 = useRef(null);
+  const secondaryViewerRefs = useMemo(() => [viewerRef2, viewerRef3, viewerRef4], []);
   
 
 
 
   const selectedCase = cases.find((item) => item.id === selectedCaseId) || null;
   const selectedSlide = selectedCase?.slides.find((slide) => slide.id === selectedSlideId) || null;
-  const compareSlide = selectedCase?.slides.find((slide) => slide.id === compareSlideId) || null;
+  const compareSlides = compareSlideIds.map((id) => selectedCase?.slides.find((slide) => slide.id === id)).filter(Boolean);
+  const openSlides = selectedSlide ? [selectedSlide, ...compareSlides] : [];
+  const availableScreenSlides = (selectedCase?.slides || []).filter((slide) => slide.id !== selectedSlideId && !compareSlideIds.includes(slide.id));
+  const openScreenCount = selectedSlide ? compareSlides.length + 1 : 0;
 
   const refresh = useCallback(async () => {
     try {
@@ -116,7 +120,8 @@ export default function App() {
   const selectCase = (item) => {
     setSelectedCaseId(item.id);
     setSelectedSlideId((item.slides || [])[0]?.id ?? null);
-    setCompareSlideId(null);
+    setCompareSlideIds([]);
+    setSplitView(false);
     setEditingSlideId(null);
     setShowSlideForm(false);
     setInspectorTab('review');
@@ -124,8 +129,60 @@ export default function App() {
   };
 
   const selectSlide = (slide) => {
+    if (slide.id === selectedSlideId) return;
+    if (selectedSlide) {
+      if (compareSlideIds.includes(slide.id)) {
+        setCompareSlideIds([selectedSlide.id, ...compareSlideIds.filter((id) => id !== slide.id)].slice(0, MAX_VIEWER_SCREENS - 1));
+      } else if (openScreenCount < MAX_VIEWER_SCREENS) {
+        setCompareSlideIds([selectedSlide.id, ...compareSlideIds].slice(0, MAX_VIEWER_SCREENS - 1));
+      } else {
+        toast.error(`Close a tab before opening another slide. Maximum ${MAX_VIEWER_SCREENS}.`);
+        return;
+      }
+    }
     setSelectedSlideId(slide.id);
     setEditingSlideId(null);
+    resetRasterView();
+  };
+
+  const toggleScreenSlide = (slide) => {
+    if (slide.id === selectedSlideId) return;
+    if (compareSlideIds.includes(slide.id) && compareSlideIds.length === 1) setSplitView(false);
+    setCompareSlideIds((current) => {
+      if (current.includes(slide.id)) return current.filter((id) => id !== slide.id);
+      if (current.length >= MAX_VIEWER_SCREENS - 1) {
+        toast.error(`A maximum of ${MAX_VIEWER_SCREENS} slide screens can be open.`);
+        return current;
+      }
+      return [...current, slide.id];
+    });
+  };
+
+  const addScreen = (slideId) => {
+    const slide = selectedCase?.slides.find((item) => item.id === Number(slideId));
+    if (!slide || !selectedSlide || openScreenCount >= MAX_VIEWER_SCREENS) return;
+    setCompareSlideIds((current) => [selectedSlide.id, ...current].slice(0, MAX_VIEWER_SCREENS - 1));
+    setSelectedSlideId(slide.id);
+    resetRasterView();
+  };
+
+  const activateScreen = (slide) => {
+    if (!selectedSlide || slide.id === selectedSlide.id) return;
+    setCompareSlideIds((current) => [selectedSlide.id, ...current.filter((id) => id !== slide.id)].slice(0, MAX_VIEWER_SCREENS - 1));
+    setSelectedSlideId(slide.id);
+    resetRasterView();
+  };
+
+  const closeScreen = (slide) => {
+    if (slide.id !== selectedSlideId) {
+      setCompareSlideIds((current) => current.filter((id) => id !== slide.id));
+      if (compareSlideIds.length <= 1) setSplitView(false);
+      return;
+    }
+    const [nextSlideId, ...remainingIds] = compareSlideIds;
+    setSelectedSlideId(nextSlideId || null);
+    setCompareSlideIds(remainingIds);
+    if (!remainingIds.length) setSplitView(false);
     resetRasterView();
   };
 
@@ -203,6 +260,7 @@ export default function App() {
         qc_blur: form.elements.qc_blur.checked,
         qc_scan_artifact: form.elements.qc_scan_artifact.checked,
         qc_incorrect_label: form.elements.qc_incorrect_label.checked,
+        qc_unusual_staining: form.elements.qc_unusual_staining.checked,
         qc_note: form.elements.qc_note.value
       };
       const response = await apiFetch(`${API}/api/slides/${slide.id}/qc`, {
@@ -242,15 +300,66 @@ export default function App() {
     }
   }
 
+  async function removeSlide() {
+    if (!deleteSlideTarget || busy) return;
+    setBusy(true);
+    try {
+      const response = await apiFetch(`${API}/api/platform/slides/${deleteSlideTarget.id}`, { method: 'DELETE' });
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(data?.detail || 'Could not remove slide');
+      }
+      const updatedCases = await refresh();
+      const updatedCase = updatedCases.find((item) => item.id === selectedCaseId);
+      setSelectedSlideId(updatedCase?.slides[0]?.id ?? null);
+      setCompareSlideIds([]);
+      setSplitView(false);
+      setDeleteSlideTarget(null);
+      toast.success('Slide removed and its source file moved to protected deleted storage.');
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function removeCase() {
+    if (!deleteCaseTarget || busy) return;
+    setBusy(true);
+    try {
+      const response = await apiFetch(`${API}/api/platform/cases/${deleteCaseTarget.id}`, { method: 'DELETE' });
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(data?.detail || 'Could not remove case');
+      }
+      await refresh();
+      setSelectedCaseId(null);
+      setSelectedSlideId(null);
+      setCompareSlideIds([]);
+      setSplitView(false);
+      setDeleteCaseTarget(null);
+      toast.success('Case removed and source files moved to protected deleted storage.');
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function updateReview(event, endpoint, successText) {
     event.preventDefault();
     if (busy || !selectedCase) return;
-    setBusy(true);
     const form = event.currentTarget;
+    const values = Object.fromEntries(new FormData(form));
+    if (endpoint === 'status' && values.status === selectedCase.status) {
+      toast(`Case is already "${selectedCase.status}".`);
+      return;
+    }
+    setBusy(true);
     try {
       const response = await apiFetch(`${API}/api/cases/${selectedCase.id}/${endpoint}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(Object.fromEntries(new FormData(form))),
+        body: JSON.stringify(values),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail || 'Could not update case');
@@ -296,6 +405,15 @@ export default function App() {
     return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
   };
 
+  const slideUploadForm = showSlideForm ? <form className="add-slide-form" onSubmit={addSlide}>
+    <Field label="Slide label *"><input name="label" required maxLength={120} placeholder="Slide A H&E" /></Field>
+    <Field label="Stain"><input name="stain" placeholder="H&E, IHC, PAS…" /></Field>
+    <Field label="Specimen description"><input name="specimen_description" placeholder="Block, level, tissue…" /></Field>
+    <Field label={`File (JPG/PNG 10 MB, SVS ${wsiLimitMb} MB) *`}><input name="image" required type="file" accept="image/jpeg,image/png,.svs" /></Field>
+    <button className="btn-primary" disabled={busy}><Upload size={16} /> {busy ? 'Uploading…' : 'Upload Slide'}</button>
+  </form> : null;
+  const canRemoveSlides = ['Histotechnologist', SYSTEM_ADMIN_ROLE, SUPER_ADMIN_ROLE].includes(user?.role);
+
   if (!user) return <Login />;
   return (
     <main id="main-content" className="layout">
@@ -306,9 +424,9 @@ export default function App() {
             <p className="subtitle">Review cases and compare slides.</p></div>
         </div>
         <div className="header-actions">
-          {user?.role === 'Admin' && (
+          {isAdministratorRole(user?.role) && (
             <Link to="/admin" className="btn-control-secondary admin-route-link">
-              Admin
+              Administration
             </Link>
           )}
           <div className="backend-indicator">
@@ -377,8 +495,10 @@ export default function App() {
             <div className="viewer-header">
               <div className="viewer-info-title"><Layers size={20} color="var(--primary)" /><h2>{selectedCase.case_id}</h2>
                 <span className="specimen-tag">{selectedCase.slide_count} slides</span></div>
-              <button type="button" className="btn-control-secondary" onClick={() => setShowSlideForm((value) => !value)}>
-                <Upload size={15} /> Add slide</button>
+              <div className="viewer-header-actions">
+                {isAdministratorRole(user?.role) && <button type="button" className="btn-control-secondary btn-case-remove" onClick={() => setDeleteCaseTarget(selectedCase)}><Trash2 size={15} /> Remove case</button>}
+                <button type="button" className="btn-control-secondary" onClick={() => setShowSlideForm((value) => !value)}><Upload size={15} /> Add slide</button>
+              </div>
             </div>
 
             <aside className="case-inspector">
@@ -396,10 +516,19 @@ export default function App() {
                   <button className="btn-control-secondary" disabled={busy}>Assign</button>
                 </form>
                 <form onSubmit={(event) => updateReview(event, 'status', 'Case status updated.')}>
-                  <Field label="Status"><select name="status" defaultValue={nextStatus(selectedCase.status)}>
-                    {statusOptions(selectedCase.status).map((status) => <option key={status}>{status}</option>)}
-                  </select></Field>
-                  
+                  <Field label="Status">
+                    <select
+                      name="status"
+                      key={`status-${selectedCase.id}-${selectedCase.status}`}
+                      defaultValue={selectedCase.status || 'New'}
+                    >
+                      {CASE_STATUS_OPTIONS.map((status) => (
+                        <option key={status} value={status}>
+                          {status}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
                   <button className="btn-control-secondary" disabled={busy}>Change status</button>
                 </form>
                 <form className="review-note-form" onSubmit={addReviewNote}>
@@ -424,19 +553,13 @@ export default function App() {
             {inspectorTab === 'report' && <ReportEditor selectedCase={selectedCase} selectSlide={selectSlide} setMessage={reportMessage} />}
             </aside>
 
-            {showSlideForm && <form className="add-slide-form" onSubmit={addSlide}>
-              <Field label="Slide label *"><input name="label" required maxLength={120} placeholder="Slide A H&E" /></Field>
-              <Field label="Stain"><input name="stain" placeholder="H&E, IHC, PAS…" /></Field>
-              <Field label="Specimen description"><input name="specimen_description" placeholder="Block, level, tissue…" /></Field>
-              <Field label={`File (JPG/PNG 10 MB, SVS ${wsiLimitMb} MB) *`}><input name="image" required type="file" accept="image/jpeg,image/png,.svs" /></Field>
-              <button className="btn-primary" disabled={busy}><Upload size={16} /> {busy ? 'Uploading…' : 'Upload Slide'}</button>
-            </form>}
+            {showSlideForm && !(selectedCase.slides || []).length && slideUploadForm}
 
             {!(selectedCase.slides || []).length ? <div className="viewer-placeholder case-empty">
               <Empty icon={FileImage} title="This case has no slides" text="Use Add Slide to attach a JPG, PNG, or SVS file." />
             </div> : <>
               <div className="slide-tray" aria-label="Case slide tray">
-                {selectedCase.slides.map((slide) => <div key={slide.id} className={`tray-item ${slide.id === selectedSlideId ? 'tray-active' : ''} ${slide.id === compareSlideId ? 'tray-compare-active' : ''}`}>
+                {selectedCase.slides.map((slide) => <div key={slide.id} className={`tray-item ${slide.id === selectedSlideId ? 'tray-active' : ''} ${compareSlideIds.includes(slide.id) ? 'tray-compare-active' : ''}`}>
                   <button type="button" className="tray-select" onClick={() => selectSlide(slide)}>
                     <img src={slide.thumbnail_url} alt={`${slide.label} thumbnail`} loading="lazy" />
                     <span className="tray-copy"><strong>{slide.label}</strong><small>{slide.stain || 'Unspecified stain'}</small>
@@ -444,10 +567,34 @@ export default function App() {
                       {slide.qc_status && <span className={`qc-badge qc-${slide.qc_status.replace(/\s+/g, '-').toLowerCase()}`}>{slide.qc_status}</span>}
                       </span></span>
                   </button>
-                  <button type="button" className="tray-compare" aria-label={compareSlideId === slide.id ? `Stop comparing ${slide.label}` : `Compare ${slide.label}`} aria-pressed={compareSlideId === slide.id} title={compareSlideId === slide.id ? 'Close compare' : 'Compare side-by-side'} onClick={() => setCompareSlideId(c => c === slide.id ? null : slide.id)}><Columns size={14} /></button>
+                  <button type="button" className="tray-compare" disabled={slide.id === selectedSlideId || (openScreenCount >= MAX_VIEWER_SCREENS && !compareSlideIds.includes(slide.id))} aria-label={compareSlideIds.includes(slide.id) ? `Remove ${slide.label} from multi-screen view` : `Add ${slide.label} to multi-screen view`} aria-pressed={compareSlideIds.includes(slide.id)} title={slide.id === selectedSlideId ? 'Primary screen' : openScreenCount >= MAX_VIEWER_SCREENS && !compareSlideIds.includes(slide.id) ? 'Maximum 4 screens reached' : compareSlideIds.includes(slide.id) ? 'Remove screen' : 'Add screen'} onClick={() => toggleScreenSlide(slide)}><Columns size={14} /></button>
                   <button type="button" className="tray-edit" aria-label={`Edit ${slide.label}`} title="Edit slide details" onClick={() => setEditingSlideId(slide.id)}><Edit3 size={14} /></button>
+                  {canRemoveSlides && <button type="button" className="tray-delete" aria-label={`Remove ${slide.label}`} title="Remove slide" onClick={() => setDeleteSlideTarget(slide)}><Trash2 size={14} /></button>}
                 </div>)}
               </div>
+
+              {selectedSlide && <nav className="viewer-tabs" aria-label="Open slide screens">
+                <div className="viewer-tab-list" role="tablist">
+                  {openSlides.map((slide) => <div key={slide.id} className={`viewer-tab ${slide.id === selectedSlideId ? 'viewer-tab--active' : ''}`}>
+                    <button type="button" className="viewer-tab-select" role="tab" aria-selected={slide.id === selectedSlideId} onClick={() => activateScreen(slide)}><FileImage size={14} /><span>{slide.label}</span></button>
+                    <button type="button" className="viewer-tab-close" aria-label={`Close ${slide.label}`} onClick={() => closeScreen(slide)}><X size={13} /></button>
+                  </div>)}
+                  <label className="viewer-tab-add" title={openScreenCount >= MAX_VIEWER_SCREENS ? 'Maximum 4 tabs reached' : 'Open another slide'}>
+                    <Plus size={15} />
+                    <span className="sr-only">Open another slide tab</span>
+                    <select value="" aria-label="Open another slide tab" disabled={openScreenCount >= MAX_VIEWER_SCREENS || !availableScreenSlides.length} onChange={(event) => addScreen(event.target.value)}>
+                      <option value="">Open slide</option>
+                      {availableScreenSlides.map((slide) => <option key={slide.id} value={slide.id}>{slide.label} — {slide.stain || 'Unspecified stain'}</option>)}
+                    </select>
+                  </label>
+                </div>
+                <div className="viewer-tab-actions">
+                  <span className="viewer-tab-limit">{openScreenCount}/{MAX_VIEWER_SCREENS} open</span>
+                  <button type="button" className={`viewer-split-toggle ${splitView ? 'viewer-split-toggle--active' : ''}`} disabled={openScreenCount < 2} aria-pressed={splitView} onClick={() => setSplitView((current) => !current)}><Columns size={14} /> {splitView ? 'Exit split view' : 'Split view'}</button>
+                </div>
+              </nav>}
+
+              {slideUploadForm}
 
               {selectedSlide && editingSlideId === selectedSlide.id && <form className="edit-slide-form" onSubmit={(event) => saveSlide(event, selectedSlide)}>
                 <Field label="Label"><input name="label" required defaultValue={selectedSlide.label} /></Field>
@@ -457,7 +604,7 @@ export default function App() {
                 <button type="button" className="btn-control-secondary" onClick={() => setEditingSlideId(null)}>Cancel</button>
               </form>}
 
-              {selectedSlide && editingSlideId === selectedSlide.id && ['Technician', 'Admin'].includes(user?.role) && <form className="edit-slide-form qc-form" onSubmit={(event) => saveSlideQc(event, selectedSlide)}>
+              {selectedSlide && editingSlideId === selectedSlide.id && ['Histotechnologist', SYSTEM_ADMIN_ROLE, SUPER_ADMIN_ROLE].includes(user?.role) && <form className="edit-slide-form qc-form" onSubmit={(event) => saveSlideQc(event, selectedSlide)}>
                 <h4 className="qc-title">Quality control</h4>
                 <Field label="Status">
                   <select name="qc_status" defaultValue={selectedSlide.qc_status || ''}>
@@ -472,36 +619,38 @@ export default function App() {
                   <label><input type="checkbox" name="qc_blur" defaultChecked={selectedSlide.qc_blur} /> Blur</label>
                   <label><input type="checkbox" name="qc_scan_artifact" defaultChecked={selectedSlide.qc_scan_artifact} /> Scan artifact</label>
                   <label><input type="checkbox" name="qc_incorrect_label" defaultChecked={selectedSlide.qc_incorrect_label} /> Incorrect label</label>
+                  <label><input type="checkbox" name="qc_unusual_staining" defaultChecked={selectedSlide.qc_unusual_staining} /> Unusual staining</label>
                 </div>
                 <Field label="Note (optional)"><input name="qc_note" defaultValue={selectedSlide.qc_note || ''} /></Field>
                 <button className="btn-primary" disabled={busy}>Save QC</button>
               </form>}
 
               
-              {selectedSlide && !compareSlideId && <SlideViewer key={selectedSlide.id} slide={selectedSlide} zoom={zoom} setZoom={setZoom}
+              {selectedSlide && !splitView && <SlideViewer key={selectedSlide.id} slide={selectedSlide} zoom={zoom} setZoom={setZoom}
                 position={position} setPosition={setPosition} dragStart={dragStart} setDragStart={setDragStart}
                 isDragging={isDragging} setIsDragging={setIsDragging} viewerRef={viewerRef}
                 reset={resetRasterView} onError={viewerError} />}
 
-              {selectedSlide && compareSlideId && <div className="compare-container">
+              {selectedSlide && splitView && compareSlideIds.length > 0 && <div className="compare-container">
                 <div className="compare-toolbar">
+                  <div className="multi-screen-summary"><Columns size={15} /><strong>{openScreenCount} screens</strong><span>Maximum {MAX_VIEWER_SCREENS}</span></div>
                   <label className="toggle-control"><input type="checkbox" checked={syncViews} onChange={e => setSyncViews(e.target.checked)} /><span>Synchronize navigation</span></label>
-                  <button className="btn-control-secondary" onClick={() => setCompareSlideId(null)}><X size={15} /> Close Compare</button>
+                  <button className="btn-control-secondary" onClick={() => setSplitView(false)}><X size={15} /> Exit split view</button>
                 </div>
-                <div className="compare-panels">
+                <div className={`compare-panels screen-count-${compareSlides.length + 1}`}>
                   <div className="compare-panel primary-panel">
+                    <div className="screen-label"><span>Primary</span><strong>{selectedSlide.label}</strong></div>
                     <SlideViewer key={selectedSlide.id} slide={selectedSlide} zoom={zoom} setZoom={setZoom}
                       position={position} setPosition={setPosition} dragStart={dragStart} setDragStart={setDragStart}
                       isDragging={isDragging} setIsDragging={setIsDragging} viewerRef={viewerRef}
-                      reset={resetRasterView} onError={viewerError} syncViews={syncViews} syncedViewerRef={viewerRef2} isPrimary={true} />
-                  </div>
-                  <div className="compare-panel secondary-panel">
-                    {compareSlide ? <SlideViewer key={compareSlide.id + '-compare'} slide={compareSlide} zoom={syncViews ? zoom : zoom2} setZoom={syncViews ? setZoom : setZoom2}
+                      reset={resetRasterView} onError={viewerError} syncViews={syncViews} syncedViewerRef={secondaryViewerRefs} isPrimary={true} />
+                  </div>{compareSlides.map((compareSlide, index) => <div className="compare-panel secondary-panel" key={compareSlide.id}>
+                    <div className="screen-label"><span>Screen {index + 2}</span><strong>{compareSlide.label}</strong><button type="button" aria-label={`Close ${compareSlide.label} screen`} onClick={() => toggleScreenSlide(compareSlide)}><X size={13} /></button></div>
+                    <SlideViewer key={compareSlide.id + '-compare'} slide={compareSlide} zoom={syncViews ? zoom : zoom2} setZoom={syncViews ? setZoom : setZoom2}
                       position={syncViews ? position : position2} setPosition={syncViews ? setPosition : setPosition2} dragStart={dragStart2} setDragStart={setDragStart2}
-                      isDragging={isDragging2} setIsDragging={setIsDragging2} viewerRef={viewerRef2}
-                      reset={resetRasterView} onError={viewerError} syncViews={syncViews} syncedViewerRef={viewerRef} isPrimary={false} /> :
-                      <div className="viewer-placeholder">Slide not found</div>}
-                  </div>
+                      isDragging={isDragging2} setIsDragging={setIsDragging2} viewerRef={index === 0 ? viewerRef2 : index === 1 ? viewerRef3 : viewerRef4}
+                      reset={resetRasterView} onError={viewerError} syncViews={syncViews} syncedViewerRef={viewerRef} isPrimary={false} />
+                  </div>)}
                 </div>
               </div>}
 
@@ -509,6 +658,22 @@ export default function App() {
           </>}
         </section>
       </section>
+      <Modal
+        open={Boolean(deleteSlideTarget)}
+        title="Remove slide"
+        onClose={() => !busy && setDeleteSlideTarget(null)}
+        footer={<><button type="button" className="modal-button modal-button--secondary" disabled={busy} onClick={() => setDeleteSlideTarget(null)}>Cancel</button><button type="button" className="modal-button btn-delete" disabled={busy} onClick={removeSlide}>{busy ? 'Removing…' : 'Remove slide'}</button></>}
+      >
+        <p className="confirmation-copy">Remove <strong>{deleteSlideTarget?.label}</strong> and its annotations, QC history, viewer settings, and analysis records? Report references will be detached and the source file will be moved to protected deleted storage.</p>
+      </Modal>
+      <Modal
+        open={Boolean(deleteCaseTarget)}
+        title="Remove case"
+        onClose={() => !busy && setDeleteCaseTarget(null)}
+        footer={<><button type="button" className="modal-button modal-button--secondary" disabled={busy} onClick={() => setDeleteCaseTarget(null)}>Cancel</button><button type="button" className="modal-button btn-delete" disabled={busy} onClick={removeCase}>{busy ? 'Removing…' : 'Remove case'}</button></>}
+      >
+        <p className="confirmation-copy">Permanently remove case <strong>{deleteCaseTarget?.case_id}</strong>, including all slides, annotations, QC history, reports, drafts, and viewer settings? This also removes finalized reports. Source image files will be quarantined and the action will remain in the audit log.</p>
+      </Modal>
     </>
     </main>
   );

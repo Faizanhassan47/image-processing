@@ -1,3 +1,5 @@
+import { getDeviceHeaders } from './services/deviceService';
+
 function cookieValue(name) {
   const prefix = `${encodeURIComponent(name)}=`;
   const entry = document.cookie.split('; ').find((item) => item.startsWith(prefix));
@@ -7,6 +9,13 @@ function cookieValue(name) {
 export async function apiFetch(url, options = {}, hasRetriedCsrf = false) {
   const method = (options.method || 'GET').toUpperCase();
   const headers = new Headers(options.headers || {});
+  const deviceHeaders = getDeviceHeaders();
+  if (deviceHeaders['X-Device-Location'] && !headers.has('X-Device-Location')) {
+    headers.set('X-Device-Location', deviceHeaders['X-Device-Location']);
+  }
+  if (deviceHeaders['X-Device-Name'] && !headers.has('X-Device-Name')) {
+    headers.set('X-Device-Name', deviceHeaders['X-Device-Name']);
+  }
   if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
     const csrfToken = cookieValue('csrf_token');
     if (csrfToken) headers.set('X-CSRF-Token', csrfToken);
