@@ -1,0 +1,490 @@
+/* ─────────────────────────────────────────────────────────────
+   AI Analysis Panel  —  HoVer-Net nucleus detection overlay
+   Tokens are sourced from styles/variables.css. No inline styles.
+   ───────────────────────────────────────────────────────────── */
+
+/* ── Container ─────────────────────────────────────────────── */
+.ai-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.ai-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 14px 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.ai-panel-header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.ai-panel-title {
+  font-size: 0.9rem;
+  font-weight: 650;
+  color: var(--text-main);
+  margin: 0;
+}
+
+.ai-panel-subtitle {
+  font-size: var(--font-size-xs);
+  color: var(--text-dim);
+}
+
+.ai-panel-chevron {
+  transition: transform 200ms ease;
+  color: var(--text-dim);
+}
+
+.ai-panel-chevron--open {
+  transform: rotate(180deg);
+}
+
+/* ── Disclaimer banner ─────────────────────────────────────── */
+.ai-disclaimer {
+  margin: 0 14px 10px;
+  padding: var(--space-2) var(--space-4);
+  background: rgba(245, 158, 11, 0.10);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-left: 3px solid #d97706;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  color: #92400e;
+  line-height: 1.45;
+  font-weight: var(--font-weight-medium);
+}
+
+/* ── ROI selection prompt ──────────────────────────────────── */
+.ai-roi-prompt {
+  margin: 0 14px 10px;
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-inner);
+  border: 1px dashed var(--border-interactive);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  line-height: 1.5;
+  text-align: center;
+}
+
+/* ── Action buttons ────────────────────────────────────────── */
+.ai-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 0 14px 10px;
+}
+
+.ai-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--button-height);
+  padding: 0 var(--space-4);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-on-primary);
+  background: var(--primary);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background var(--transition-fast), opacity var(--transition-fast);
+}
+
+.ai-action-btn:hover:not(:disabled) {
+  background: var(--primary-hover);
+}
+
+.ai-action-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.ai-action-btn--secondary {
+  color: var(--text-main);
+  background: var(--bg-inner);
+  border: 1px solid var(--border-interactive);
+}
+
+.ai-action-btn--secondary:hover:not(:disabled) {
+  background: var(--bg-canvas);
+}
+
+/* ── Status indicator ──────────────────────────────────────── */
+.ai-status-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 14px;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.ai-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ai-status-dot--running {
+  background: #f59e0b;
+  animation: ai-pulse 1.2s ease-in-out infinite;
+}
+
+.ai-status-dot--completed { background: #059669; }
+.ai-status-dot--failed   { background: #dc2626; }
+.ai-status-dot--pending  { background: #94a3b8; }
+
+@keyframes ai-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+
+/* ── Summary statistics grid ───────────────────────────────── */
+.ai-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+  padding: 0 14px 10px;
+}
+
+.ai-stat-card {
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-inner);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  text-align: center;
+}
+
+.ai-stat-value {
+  display: block;
+  font-size: 1.15rem;
+  font-weight: var(--font-weight-bold);
+  color: var(--primary);
+  line-height: 1.2;
+}
+
+.ai-stat-label {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+/* ── Nucleus class breakdown table ─────────────────────────── */
+.ai-class-section {
+  padding: 0 14px 10px;
+}
+
+.ai-class-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-2);
+}
+
+.ai-class-section-heading h4 {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-main);
+  margin: 0;
+}
+
+.ai-class-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-xs);
+}
+
+.ai-class-table th {
+  padding: var(--space-1) var(--space-2);
+  color: var(--text-dim);
+  font-weight: var(--font-weight-medium);
+  text-align: left;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.ai-class-table td {
+  padding: var(--space-1) var(--space-2);
+  color: var(--text-main);
+  vertical-align: middle;
+}
+
+.ai-class-row {
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background var(--transition-fast);
+}
+
+.ai-class-row:last-child {
+  border-bottom: none;
+}
+
+.ai-class-row--hidden {
+  opacity: 0.4;
+}
+
+.ai-class-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+}
+
+.ai-class-swatch {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ai-class-pct {
+  color: var(--text-dim);
+}
+
+.ai-class-bar-cell {
+  width: 60px;
+}
+
+.ai-class-bar-track {
+  height: 4px;
+  background: var(--bg-canvas);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+
+.ai-class-bar-fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  transition: width 400ms ease;
+}
+
+.ai-toggle-btn {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-interactive);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.ai-toggle-btn--hidden {
+  background: var(--bg-canvas);
+}
+
+/* ── Morphology metrics ────────────────────────────────────── */
+.ai-morph-section {
+  padding: 0 14px 10px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.ai-morph-section h4 {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-main);
+  margin: 10px 0 var(--space-2);
+}
+
+.ai-morph-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+}
+
+.ai-morph-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-inner);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.ai-morph-label {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+}
+
+.ai-morph-value {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-main);
+  font-family: var(--font-mono);
+}
+
+/* ── Selected nucleus detail ───────────────────────────────── */
+.ai-nucleus-detail {
+  margin: 0 14px 10px;
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-inner);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+}
+
+.ai-nucleus-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-2);
+}
+
+.ai-nucleus-detail-header strong {
+  font-size: var(--font-size-sm);
+  color: var(--text-main);
+}
+
+.ai-nucleus-detail-close {
+  display: flex;
+  align-items: center;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-dim);
+  padding: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.ai-nucleus-detail-rows dt {
+  color: var(--text-dim);
+  grid-column: 1;
+}
+
+.ai-nucleus-detail-rows dd {
+  color: var(--text-main);
+  font-weight: var(--font-weight-medium);
+  font-family: var(--font-mono);
+  grid-column: 2;
+  margin: 0;
+}
+
+.ai-nucleus-detail-rows {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: var(--space-4);
+  row-gap: var(--space-1);
+}
+
+/* ── Past analyses selector ────────────────────────────────── */
+.ai-history-section {
+  padding: 0 14px 10px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.ai-history-section h4 {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-main);
+  margin: 10px 0 var(--space-2);
+}
+
+.ai-history-select {
+  width: 100%;
+  min-height: var(--button-height);
+  padding: 0 var(--space-3);
+  font-size: var(--font-size-xs);
+  color: var(--text-main);
+  background: var(--bg-inner);
+  border: 1px solid var(--border-interactive);
+  border-radius: var(--radius-sm);
+}
+
+/* ── PDF download button ───────────────────────────────────── */
+.ai-pdf-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: calc(100% - 28px);
+  margin: 0 14px 12px;
+  min-height: var(--button-height);
+  padding: 0 var(--space-4);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--primary-dark);
+  background: rgba(15, 118, 110, 0.08);
+  border: 1px solid rgba(15, 118, 110, 0.35);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  text-decoration: none;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.ai-pdf-btn:hover {
+  background: rgba(15, 118, 110, 0.14);
+  border-color: rgba(15, 118, 110, 0.55);
+}
+
+/* ── SVG nucleus overlay (rendered in WsiViewer's SVG layer) ─ */
+.ai-nucleus-contour {
+  pointer-events: auto;
+  cursor: pointer;
+  transition: opacity 150ms ease;
+}
+
+.ai-nucleus-contour:hover {
+  opacity: 0.85;
+}
+
+.ai-nucleus-contour--hidden {
+  display: none;
+}
+
+.ai-nucleus-tooltip {
+  position: absolute;
+  z-index: 30;
+  max-width: 200px;
+  padding: var(--space-2) var(--space-3);
+  background: rgba(9, 13, 15, 0.93);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  pointer-events: none;
+  font-size: var(--font-size-xs);
+  color: #e2e8f0;
+  line-height: 1.5;
+}
+
+.ai-nucleus-tooltip strong {
+  display: block;
+  font-size: var(--font-size-sm);
+  color: #f1f5f9;
+  margin-bottom: 2px;
+}
+
+/* ── Overlay image (PNG preview in panel) ──────────────────── */
+.ai-overlay-preview {
+  width: calc(100% - 28px);
+  margin: 0 14px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  display: block;
+  max-height: 120px;
+  object-fit: cover;
+  cursor: pointer;
+}
+
+/* ── Model info footer ─────────────────────────────────────── */
+.ai-model-info {
+  padding: 8px 14px 12px;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  line-height: 1.5;
+}

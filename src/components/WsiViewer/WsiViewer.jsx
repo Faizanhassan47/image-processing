@@ -9,6 +9,7 @@ import { viewerService } from '../../services/viewerService';
 import { getAnnotationHoverMeasurements, getAnnotationMeasurements } from './annotationMeasurements';
 import { useAuth } from '../../modules/auth/AuthProvider';
 import { SYSTEM_ADMIN_ROLE, SUPER_ADMIN_ROLE } from '../../config/roles';
+import AiAnalysisPanel, { PANNUKE_CLASSES } from './AiAnalysisPanel';
 
 const DISPLAY_PROFILES = {
   standard: ['Standard color', 'Original RGB display without a profile transformation.'],
@@ -85,6 +86,26 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
   const [annotationStatus, setAnnotationStatus] = useState('All');
   const [scaleBar, setScaleBar] = useState(null);
   const [resizeState, setResizeState] = useState(null);
+
+  // ── HoVer-Net AI analysis state ───────────────────────────────────────────
+  /** The active analysis record returned by the backend (contains nuclei array). */
+  const [aiAnalysis, setAiAnalysis] = useState(null);
+  /** Per-class visibility toggles driven by the panel. */
+  const [aiHiddenClasses, setAiHiddenClasses] = useState(new Set());
+  /** The nucleus the user last clicked, shown in the panel detail card. */
+  const [aiSelectedNucleus, setAiSelectedNucleus] = useState(null);
+  /** Screen-space tooltip position for nucleus hover. */
+  const [nucleusTooltip, setNucleusTooltip] = useState(null);
+  /** ROI extracted from the most recently drawn/selected rectangle annotation. */
+  const roiRect = (() => {
+    if (draft?.annotation_type === 'rectangle' && draft.width > 0) {
+      return { x: draft.x, y: draft.y, width: draft.width, height: draft.height };
+    }
+    if (editing?.annotation_type === 'rectangle' && editing.width > 0) {
+      return { x: editing.x, y: editing.y, width: editing.width, height: editing.height };
+    }
+    return null;
+  })();
 
   useEffect(() => {
     const changed = () => {
@@ -759,6 +780,36 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
              ))}
              {renderResizeHandles()}
              {aiVisible && aiResults.map((result) => result.geometry && <g key={`ai-${result.id}`} className="ai-result-shape" onPointerEnter={() => showAnnotationMeasurement(aiMeasurementTarget(result))} onPointerLeave={() => setHoveredAnnotation(null)}><title>{`${result.model_name} ${result.model_version}${result.confidence == null ? '' : ` · ${(result.confidence * 100).toFixed(1)}%`}`}</title>{renderShape({ ...result.geometry, id: `ai-${result.id}` }, '#d39a3c', false)}</g>)}
+             {/* ── HoVer-Net nucleus contours ───────────────────────────────── */}
+             {aiAnalysis?.nuclei && viewerReady && aiAnalysis.nuclei.map((nuc) => {
+               const cls = PANNUKE_CLASSES.find((c) => c.key === nuc.type) || { color: '#6366f1' };
+               if (aiHiddenClasses.has(nuc.type)) return null;
+               if (!nuc.contour || nuc.contour.length < 3) return null;
+               // contour points are [x, y] in level-0 image coords
+               const pixelPts = nuc.contour.map(([cx, cy]) => imageToViewport(cx, cy));
+               const ptStr = pixelPts.map((p) => `${p.x},${p.y}`).join(' ');
+               const isSelected = aiSelectedNucleus?.id === nuc.id;
+               return (
+                 <g
+                   key={`nuc-${nuc.id}`}
+                   className="ai-nucleus-contour"
+                   onPointerEnter={(e) => {
+                     const bounds = svgOverlayRef.current?.getBoundingClientRect();
+                     if (bounds) setNucleusTooltip({ x: e.clientX - bounds.left, y: e.clientY - bounds.top, nuc });
+                   }}
+                   onPointerLeave={() => setNucleusTooltip(null)}
+                   onClick={() => { setAiSelectedNucleus(nuc); setNucleusTooltip(null); }}
+                 >
+                   <polygon
+                     points={ptStr}
+                     fill={`${cls.color}22`}
+                     stroke={cls.color}
+                     strokeWidth={isSelected ? 2.5 : 1.5}
+                     strokeOpacity={isSelected ? 1 : 0.82}
+                   />
+                 </g>
+               );
+             })}
              {draftGeometry && renderShape(draftGeometry, '#e85d75', true)}
           </svg>
           {hoveredAnnotation && <div className="annotation-hover-measurement" role="tooltip">
@@ -769,6 +820,18 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
               {measurement.imperial && <output>{measurement.imperial}</output>}
             </div>)}
           </div>}
+          {/* ── Nucleus hover tooltip ─────────────────────────────────── */}
+          {nucleusTooltip && (() => {
+            const { x, y, nuc } = nucleusTooltip;
+            const cls = PANNUKE_CLASSES.find((c) => c.key === nuc.type) || { color: '#6366f1', label: nuc.type };
+            return (
+              <div className="ai-nucleus-tooltip" style={{ top: y + 12, left: x + 10 }} role="tooltip">
+                <strong style={{ color: cls.color }}>{cls.label || nuc.type}</strong>
+                Conf: {nuc.type_prob != null ? `${(nuc.type_prob * 100).toFixed(1)}%` : '—'}
+                {' · '}Area: {nuc.area != null ? `${nuc.area.toFixed(0)} px²` : '—'}
+              </div>
+            );
+          })()}
           {draftGeometry && liveMeasurements.length > 0 && <div className="annotation-live-measurement" role="status">
             <strong>Live measurement</strong>
             {liveMeasurements.map((measurement) => <span key={measurement.label}>{measurement.label}: {measurement.value}</span>)}
@@ -814,6 +877,16 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
           {!bookmarks.length ? <p className="annotation-empty">No saved regions.</p> : bookmarks.map((bookmark) => <div className="viewer-bookmark" key={bookmark.id}><button type="button" onClick={() => openBookmark(bookmark)}>{bookmark.name}</button><button type="button" aria-label={`Delete ${bookmark.name}`} onClick={() => removeBookmark(bookmark)}><Trash2 size={13} /></button></div>)}
         </section>
         {aiResults.length > 0 && <section className="viewer-ai-results" aria-label="AI evidence"><div className="annotation-panel-heading"><div><h3>AI evidence</h3><span>{aiResults.length} results</span></div><button type="button" className="btn-control-secondary" onClick={() => setAiVisible((value) => !value)}>{aiVisible ? 'Hide' : 'Show'}</button></div>{aiResults.map((result) => <div className="viewer-ai-result" key={result.id}><strong>{result.model_name} {result.model_version}</strong><span>{result.result_type} · {result.confidence == null ? 'No confidence' : `${(result.confidence * 100).toFixed(1)}% confidence`}</span>{result.limitations && <small>{result.limitations}</small>}</div>)}</section>}
+        {/* ── HoVer-Net AI Analysis Panel ─────────────────────────────── */}
+        <AiAnalysisPanel
+          slide={slide}
+          roiRect={roiRect}
+          onAnalysisReady={(analysis) => {
+            setAiAnalysis(analysis);
+            setAiSelectedNucleus(null);
+          }}
+          onError={onError}
+        />
         {draft && <AnnotationForm title="New annotation" values={draft} calibration={calibration} onSubmit={saveNew} onCancel={() => setDraft(null)} saving={saving} />}
         {editing && <AnnotationForm title="Edit annotation" values={editing} calibration={calibration} onSubmit={saveEdit} onCancel={() => setEditing(null)} saving={saving} />}
         {annotationsLoading ? <p className="annotation-empty">Loading annotations…</p> : !annotations.length ?

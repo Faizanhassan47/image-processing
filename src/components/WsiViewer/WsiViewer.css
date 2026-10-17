@@ -541,3 +541,14 @@
   .wsi-controls { justify-content: flex-start; }
 }
 
+/* ── Shared utility: spin animation (used by AI loader) ─────── */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.spin { animation: spin 0.9s linear infinite; }
+
+/* ── Nucleus contour overlays ─────────────────────────────────
+   The annotation SVG has pointer-events:none by default.
+   Individual nucleus <g> elements need auto so hover/click fires. */
+.ai-nucleus-contour { pointer-events: auto; }

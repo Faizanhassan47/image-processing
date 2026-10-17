@@ -34,4 +34,23 @@ export const viewerService = {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(bookmark),
   }),
   deleteBookmark: (slideId, bookmarkId) => request(`${platformRoot}/slides/${slideId}/bookmarks/${bookmarkId}`, { method: 'DELETE' }),
+
+  // ── HoVer-Net AI analysis ────────────────────────────────────────────────
+  /** Submit a new AI analysis for the given slide + optional ROI. */
+  runAiAnalysis: (slideId, payload, signal) => request(`${apiRoot}/slides/${slideId}/ai/analyses`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    signal,
+  }),
+  /** Retrieve the list of past AI analyses for a slide. */
+  getAiAnalyses: (slideId, signal) => request(`${apiRoot}/slides/${slideId}/ai/analyses`, { signal }),
+  /** Retrieve a single AI analysis record by its ID. */
+  getAiAnalysis: (analysisId, signal) => request(`${apiRoot}/ai/analyses/${analysisId}`, { signal }),
+  /** Returns the absolute URL for downloading the AI PDF report (no fetch – caller uses window.open or <a href>). */
+  aiReportPdfUrl: (analysisId) => `${API_BASE_URL}/api/ai/analyses/${analysisId}/report.pdf`,
+  /** Returns the URL of the ROI image for the analysis. */
+  aiRoiImageUrl: (analysisId) => `${API_BASE_URL}/api/ai/analyses/${analysisId}/roi.png`,
+  /** Returns the URL of the colored overlay image for the analysis. */
+  aiOverlayImageUrl: (analysisId) => `${API_BASE_URL}/api/ai/analyses/${analysisId}/overlay.png`,
 };
