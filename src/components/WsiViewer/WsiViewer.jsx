@@ -669,7 +669,7 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
   });
   const resetDisplay = () => { setDisplayProfile('standard'); setBrightness(100); setContrast(100); };
   const autoBalanceDisplay = () => { setDisplayProfile('standard'); setBrightness(105); setContrast(110); };
-  const canCalibrate = ['Histotechnologist', SYSTEM_ADMIN_ROLE, SUPER_ADMIN_ROLE].includes(user?.role);
+  const canCalibrate = ['Laboratory Manager', SYSTEM_ADMIN_ROLE, SUPER_ADMIN_ROLE].includes(user?.role);
   const annotationCategories = [...new Set(annotations.map((annotation) => annotation.category).filter(Boolean))].sort();
   const annotationStatuses = [...new Set(annotations.map((annotation) => annotation.annotation_status).filter(Boolean))].sort();
   const filteredAnnotations = annotations.filter((annotation) => (annotationCategory === 'All' || annotation.category === annotationCategory) && (annotationStatus === 'All' || annotation.annotation_status === annotationStatus));
@@ -791,7 +791,7 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
             <label>Vertical µm/px<input name="pixel_size_microns_y" type="number" min="0.0001" max="1000" step="any" required placeholder="Example: 0.25" /></label>
             <label>Calibration source / reason<input name="reason" required minLength="3" maxLength="2000" placeholder="Scanner specification or stage micrometer" /></label>
             <button className="btn-primary" disabled={calibrationSaving}>{calibrationSaving ? 'Saving…' : 'Apply calibration'}</button>
-          </form> : <p className="viewer-calibration-notice">Ask a Histotechnologist or administrator to enter the scanner’s verified µm/px value.</p>}
+          </form> : <p className="viewer-calibration-notice">Ask a Laboratory Manager or System Administrator to enter the scanner’s verified µm/px value.</p>}
         </section>}
         <div className="annotation-panel-heading"><div><h3>Annotations</h3><span>{annotations.length} items</span></div></div>
         <section className="annotation-layer-controls" aria-label="Annotation layers and filters">

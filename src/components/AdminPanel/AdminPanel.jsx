@@ -15,7 +15,7 @@ export default function AdminPanel({ API }) {
   const [username, setUsername] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('Histotechnologist');
+  const [role, setRole] = useState('Laboratory Manager');
   const [passwordResetUser, setPasswordResetUser] = useState(null);
   const [newPassword, setNewPassword] = useState('');
   const [isResettingPassword, setIsResettingPassword] = useState(false);
@@ -220,7 +220,7 @@ export default function AdminPanel({ API }) {
                     <td>{u.username}</td>
                     <td>{u.display_name}</td>
                     <td>
-                      {isProtectedSuperAdmin(u.username) ? <span className="role-badge">Super Administrator</span> : <select
+                      {isProtectedSuperAdmin(u.username) ? <span className="role-badge">System Administrator (protected)</span> : <select
                         value={u.role}
                         onChange={(e) => setPendingAction({ type: 'role', user: u, role: e.target.value })}
                         className="role-badge role-select"
