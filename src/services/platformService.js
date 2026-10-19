@@ -12,11 +12,54 @@ async function request(path, options = {}) {
 
 export const platformService = {
   health: (signal) => request('/health', { signal }),
+  dashboardMetrics: (signal) => request('/dashboard/metrics', { signal }),
+  searchCases: (params = {}, signal) => {
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([key, val]) => {
+      if (val !== null && val !== undefined && val !== '') query.append(key, val);
+    });
+    const qs = query.toString();
+    return request(`/cases/search${qs ? `?${qs}` : ''}`, { signal });
+  },
+  caseTimeline: (caseId, signal) => request(`/cases/${caseId}/timeline`, { signal }),
+  caseLinks: (caseId, signal) => request(`/cases/${caseId}/links`, { signal }),
+  createCaseLink: (caseId, body) => request(`/cases/${caseId}/links`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }),
+  createConsultation: (caseId, body) => request(`/cases/${caseId}/consultations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }),
+  reportTemplates: (signal) => request('/report-templates', { signal }),
+  createReportTemplate: (body) => request('/report-templates', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }),
   ingestionJobs: (signal) => request('/ingestion/jobs', { signal }),
+  batchIngestion: (action, job_ids) => request('/ingestion/batch', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, job_ids }),
+  }),
+  reconciliationItems: (signal) => request('/reconciliation', { signal }),
+  resolveReconciliation: (itemId, resolvedCaseId) => request(`/reconciliation/${itemId}/resolve`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ resolved_case_id: resolvedCaseId }),
+  }),
   aiModels: (signal) => request('/ai/models', { signal }),
   aiJobs: (signal) => request('/ai/jobs', { signal }),
   hl7Events: (signal) => request('/hl7/events', { signal }),
   compatibility: (signal) => request('/compatibility', { signal }),
+  addCompatibility: (body) => request('/compatibility', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }),
   backups: (signal) => request('/backups', { signal }),
   retryIngestion: (id) => request(`/ingestion/jobs/${id}/retry`, { method: 'POST' }),
   processIngestion: (id) => request(`/ingestion/jobs/${id}/process`, { method: 'POST' }),
@@ -24,4 +67,11 @@ export const platformService = {
   createBackup: (name = 'pathology') => request('/backups', {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }),
   }),
+  getViewerPreferences: (slideId, signal) => request(`/slides/${slideId}/viewer-preferences`, { signal }),
+  saveViewerPreferences: (slideId, prefs) => request(`/slides/${slideId}/viewer-preferences`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(prefs),
+  }),
+  exportAnnotations: (slideId, format = 'geojson') => `${root}/slides/${slideId}/annotations/export?format=${format}`,
 };

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import OpenSeadragon from 'openseadragon';
-import { Bookmark, Edit3, Eye, EyeOff, Expand, Layers, Maximize2, Minimize2, Minus, Plus, RefreshCw, RotateCcw, RotateCw, Trash2, PenTool } from 'lucide-react';
+import { Bookmark, Edit3, Eye, EyeOff, Expand, Layers, Maximize2, Minimize2, Minus, Plus, RefreshCw, RotateCcw, RotateCw, Trash2, PenTool, Download } from 'lucide-react';
 import '../SlideViewer/SlideViewer.css';
 import './WsiViewer.css';
 import { API_BASE_URL as API } from '../../config';
@@ -943,7 +943,32 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
             <button className="btn-primary" disabled={calibrationSaving}>{calibrationSaving ? 'Saving…' : 'Apply calibration'}</button>
           </form> : <p className="viewer-calibration-notice">Ask a Laboratory Manager or System Administrator to enter the scanner’s verified µm/px value.</p>}
         </section>}
-        <div className="annotation-panel-heading"><div><h3>Annotations</h3><span>{annotations.length} items</span></div></div>
+        <div className="annotation-panel-heading">
+          <div>
+            <h3>Annotations</h3>
+            <span>{annotations.length} items</span>
+          </div>
+          <div style={{ display: 'flex', gap: '4px' }}>
+            <a
+              href={`${API}/api/platform/slides/${slide.id}/annotations/export?format=geojson`}
+              className="btn-control-secondary"
+              download={`slide_${slide.id}_annotations.geojson`}
+              title="Export as GeoJSON"
+              style={{ padding: '3px 7px', fontSize: '0.72rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+            >
+              <Download size={12} /> GeoJSON
+            </a>
+            <a
+              href={`${API}/api/platform/slides/${slide.id}/annotations/export?format=csv`}
+              className="btn-control-secondary"
+              download={`slide_${slide.id}_annotations.csv`}
+              title="Export as CSV"
+              style={{ padding: '3px 7px', fontSize: '0.72rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+            >
+              <Download size={12} /> CSV
+            </a>
+          </div>
+        </div>
         <section className="annotation-layer-controls" aria-label="Annotation layers and filters">
           <header><Layers size={15} /><strong>Annotation layers</strong></header>
           <label><span>Human annotations</span><input type="checkbox" checked={visible} onChange={(event) => setVisible(event.target.checked)} /></label>
