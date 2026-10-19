@@ -73,5 +73,16 @@ export const platformService = {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(prefs),
   }),
+  hl7Samples: (signal) => request('/hl7/sandbox/samples', { signal }),
+  validateHl7: (rawPayload) => request('/hl7/sandbox/validate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ raw_payload: rawPayload }),
+  }),
+  simulateHl7: (rawPayload) => request('/hl7/sandbox/simulate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ raw_payload: rawPayload }),
+  }),
   exportAnnotations: (slideId, format = 'geojson') => `${root}/slides/${slideId}/annotations/export?format=${format}`,
 };

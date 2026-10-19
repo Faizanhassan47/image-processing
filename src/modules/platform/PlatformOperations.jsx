@@ -7,6 +7,7 @@ import {
 import toast from 'react-hot-toast';
 import { Link } from 'react-router-dom';
 import { platformService } from '../../services/platformService';
+import Hl7Sandbox from './Hl7Sandbox';
 import './PlatformOperations.css';
 
 const emptyData = {
@@ -183,6 +184,15 @@ export default function PlatformOperations() {
           onClick={() => setActiveTab('matrix')}
         >
           <Sliders size={15} /> Scanner Compatibility
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'hl7'}
+          className={`ops-nav-tab ${activeTab === 'hl7' ? 'ops-nav-tab--active' : ''}`}
+          onClick={() => setActiveTab('hl7')}
+        >
+          <Waypoints size={15} /> HL7 v2 Sandbox
         </button>
         <button
           type="button"
@@ -582,6 +592,10 @@ export default function PlatformOperations() {
             {!data.models.length && <p className="ops-empty">No AI models registered.</p>}
           </section>
         </div>
+      )}
+
+      {!loading && activeTab === 'hl7' && (
+        <Hl7Sandbox onMessageProcessed={() => load()} />
       )}
     </main>
   );

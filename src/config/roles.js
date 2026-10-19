@@ -16,3 +16,11 @@ export function isProtectedSuperAdmin(username) {
 export function isAdministratorRole(role) {
   return role === SYSTEM_ADMIN_ROLE || role === SUPER_ADMIN_ROLE;
 }
+
+export function isIntakeRole(role) {
+  return role === SYSTEM_ADMIN_ROLE || role === 'Laboratory Manager';
+}
+
+export function isClinicalReadRole(role) {
+  return role === SYSTEM_ADMIN_ROLE || role === 'Laboratory Manager' || role === 'Pathologist';
+}
