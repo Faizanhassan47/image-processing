@@ -34,4 +34,53 @@ export const viewerService = {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(bookmark),
   }),
   deleteBookmark: (slideId, bookmarkId) => request(`${platformRoot}/slides/${slideId}/bookmarks/${bookmarkId}`, { method: 'DELETE' }),
+
+  // ── HoVer-Net AI analysis ────────────────────────────────────────────────
+  /** Submit a new AI analysis for the given slide + optional ROI. */
+  runAiAnalysis: (slideId, payload, signal) => request(`${apiRoot}/slides/${slideId}/ai/analyses`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    signal,
+  }),
+  /** Retrieve the list of past AI analyses for a slide. */
+  getAiAnalyses: (slideId, signal) => request(`${apiRoot}/slides/${slideId}/ai/analyses`, { signal }),
+  /** Retrieve a single AI analysis record by its ID. */
+  getAiAnalysis: (analysisId, signal) => request(`${apiRoot}/ai/analyses/${analysisId}`, { signal }),
+  /** Retrieve patch count and duration estimation for ROI or slide. */
+  getAiEstimate: (slideId, params, signal) => {
+    const qs = params ? new URLSearchParams(params).toString() : '';
+    return request(`${apiRoot}/slides/${slideId}/ai/estimate${qs ? `?${qs}` : ''}`, { signal });
+  },
+  /** Retrieve real-time progress status of an AI background job. */
+  getAiJobStatus: (jobId, signal) => request(`${apiRoot}/ai/jobs/${jobId}`, { signal }),
+  /** Cancel a running AI background job. */
+  cancelAiJob: (jobId) => request(`${apiRoot}/ai/jobs/${jobId}/cancel`, { method: 'POST' }),
+  /** Returns the absolute URL for downloading the AI PDF report. */
+  aiReportPdfUrl: (analysisId) => `${API_BASE_URL}/api/ai/analyses/${analysisId}/report.pdf`,
+  /** Generate or re-generate AI PDF report on demand. */
+  generateAiReport: (analysisId) => request(`${apiRoot}/ai/analyses/${analysisId}/report`, {
+    method: 'POST',
+  }),
+  /** Download AI PDF report using authenticated fetch and blob. */
+  downloadAiReportPdf: async (analysisId) => {
+    const response = await apiFetch(`${apiRoot}/ai/analyses/${analysisId}/report.pdf`);
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.detail || `Failed to download AI report (${response.status})`);
+    }
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ai_report_analysis_${analysisId}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => window.URL.revokeObjectURL(url), 10000);
+  },
+  /** Returns the URL of the ROI image for the analysis. */
+  aiRoiImageUrl: (analysisId) => `${API_BASE_URL}/api/ai/analyses/${analysisId}/roi.png`,
+  /** Returns the URL of the colored overlay image for the analysis. */
+  aiOverlayImageUrl: (analysisId) => `${API_BASE_URL}/api/ai/analyses/${analysisId}/overlay.png`,
 };

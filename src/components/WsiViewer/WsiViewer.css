@@ -9,6 +9,9 @@
 .annotation-svg-overlay { position: absolute; inset: 0; z-index: 10; width: 100%; height: 100%; pointer-events: none; }
 .annotation-svg-overlay.drawing-active, .annotation-shape { pointer-events: auto; }
 .annotation-shape { cursor: pointer; }
+.annotation-shape--selected { filter: drop-shadow(0 0 5px #3b82f6); }
+.annotation-item--selected { background: var(--color-surface-subtle); border-left: 3px solid var(--color-primary); }
+.ai-roi-boundary { pointer-events: none; }
 .annotation-resize-handle { fill: var(--color-surface); stroke: var(--color-primary); stroke-width: 2; pointer-events: auto; }
 .annotation-resize-handle--nw, .annotation-resize-handle--se { cursor: nwse-resize; }
 .annotation-resize-handle--ne, .annotation-resize-handle--sw { cursor: nesw-resize; }
@@ -539,5 +542,37 @@
 
   .viewer-hint-bar { align-items: flex-start; }
   .wsi-controls { justify-content: flex-start; }
+}
+
+/* ── Shared utility: spin animation (used by AI loader) ─────── */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.spin { animation: spin 0.9s linear infinite; }
+
+.ai-nucleus-contour { pointer-events: auto; }
+
+/* ── Selected annotation highlight ─────────────────────────── */
+.annotation-shape--selected rect,
+.annotation-shape--selected ellipse,
+.annotation-shape--selected polygon {
+  stroke-width: 3.5px !important;
+  stroke-dasharray: 4 2;
+  filter: drop-shadow(0 0 4px rgba(99, 102, 241, 0.6));
+}
+
+.annotation-item--selected {
+  border-color: #6366f1 !important;
+  background: rgba(99, 102, 241, 0.08) !important;
+}
+
+/* ── AI Analyzed ROI Boundary box ───────────────────────────── */
+.ai-roi-boundary {
+  pointer-events: none;
+}
+
+.ai-roi-boundary rect {
+  vector-effect: non-scaling-stroke;
 }
 

@@ -9,6 +9,7 @@ import { viewerService } from '../../services/viewerService';
 import { getAnnotationHoverMeasurements, getAnnotationMeasurements } from './annotationMeasurements';
 import { useAuth } from '../../modules/auth/AuthProvider';
 import { SYSTEM_ADMIN_ROLE, SUPER_ADMIN_ROLE } from '../../config/roles';
+import AiAnalysisPanel, { PANNUKE_CLASSES } from './AiAnalysisPanel';
 
 const DISPLAY_PROFILES = {
   standard: ['Standard color', 'Original RGB display without a profile transformation.'],
@@ -62,6 +63,7 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
   const [draft, setDraft] = useState(null);
   const [redoDraft, setRedoDraft] = useState(null);
   const [editing, setEditing] = useState(null);
+  const [selectedAnnotation, setSelectedAnnotation] = useState(null);
   const [saving, setSaving] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -86,6 +88,35 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
   const [annotationStatus, setAnnotationStatus] = useState('All');
   const [scaleBar, setScaleBar] = useState(null);
   const [resizeState, setResizeState] = useState(null);
+
+  // ── HoVer-Net AI analysis state ───────────────────────────────────────────
+  /** The active analysis record returned by the backend (contains nuclei array). */
+  const [aiAnalysis, setAiAnalysis] = useState(null);
+  /** Per-class visibility toggles driven by the panel. */
+  const [aiHiddenClasses, setAiHiddenClasses] = useState(new Set());
+  /** The nucleus the user last clicked, shown in the panel detail card. */
+  const [aiSelectedNucleus, setAiSelectedNucleus] = useState(null);
+  /** Screen-space tooltip position for nucleus hover. */
+  const [nucleusTooltip, setNucleusTooltip] = useState(null);
+  /** ROI extracted from the most recently drawn/selected rectangle annotation. */
+  const roiRect = (() => {
+    if (draft?.annotation_type === 'rectangle' && draft.width > 0) {
+      return { x: draft.x, y: draft.y, width: draft.width, height: draft.height, label: draft.label || 'Draft ROI' };
+    }
+    if (editing?.annotation_type === 'rectangle' && editing.width > 0) {
+      return { x: editing.x, y: editing.y, width: editing.width, height: editing.height, label: editing.label || 'Editing ROI' };
+    }
+    if (selectedAnnotation?.annotation_type === 'rectangle' && selectedAnnotation.width > 0) {
+      return {
+        x: selectedAnnotation.x,
+        y: selectedAnnotation.y,
+        width: selectedAnnotation.width,
+        height: selectedAnnotation.height,
+        label: selectedAnnotation.label || `Annotation #${selectedAnnotation.id}`,
+      };
+    }
+    return null;
+  })();
 
   useEffect(() => {
     const changed = () => {
@@ -311,6 +342,7 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
       event.preventDefault();
       event.stopPropagation();
       host.setPointerCapture?.(event.pointerId);
+      setSelectedAnnotation(null);
       
       const pt = getImagePoint(event);
       if (drawMode === 'point') {
@@ -525,6 +557,25 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
     }
   };
 
+  const selectAnnotation = (annotation) => {
+    setSelectedAnnotation(annotation);
+    goTo(annotation);
+  };
+
+  const panToRoi = useCallback((roi) => {
+    const viewer = viewerRef.current;
+    if (!viewer || !roi) return;
+    const rx = roi.x ?? roi.roi_x;
+    const ry = roi.y ?? roi.roi_y;
+    const rw = roi.width ?? roi.roi_width ?? 256;
+    const rh = roi.height ?? roi.roi_height ?? 256;
+    if (rx == null || ry == null) return;
+    const rect = new OpenSeadragon.Rect(rx, ry, rw, rh);
+    const item = viewer.world?.getItemAt(0);
+    if (!item) return;
+    viewer.viewport.fitBounds(item.imageToViewportRectangle(rect), false);
+  }, []);
+
   async function saveNew(event) {
     event.preventDefault();
     setSaving(true);
@@ -533,6 +584,7 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
       const data = await viewerService.createAnnotation(slide.id, { ...draft, ...details });
       setAnnotations((current) => [...current, data]);
       setDraft(null);
+      setSelectedAnnotation(data);
     } catch (error) { onError(`Could not save annotation: ${error.message}`); }
     finally { setSaving(false); }
   }
@@ -548,6 +600,7 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
       });
       setAnnotations((current) => current.map((item) => item.id === data.id ? data : item));
       setEditing(null);
+      setSelectedAnnotation(data);
     } catch (error) { onError(`Could not update annotation: ${error.message}`); }
     finally { setSaving(false); }
   }
@@ -557,6 +610,7 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
       await viewerService.deleteAnnotation(slide.id, annotation.id);
       setAnnotations((current) => current.filter((item) => item.id !== annotation.id));
       if (editing?.id === annotation.id) setEditing(null);
+      if (selectedAnnotation?.id === annotation.id) setSelectedAnnotation(null);
       setDeleteTarget(null);
     } catch (error) { onError(`Could not delete annotation: ${error.message}`); }
   }
@@ -754,13 +808,95 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
                ))}
              </defs>
              {visible && filteredAnnotations.map((annotation) => (
-                <g key={annotation.id} className="annotation-shape" onClick={() => goTo(annotation)} onPointerEnter={() => showAnnotationMeasurement({ ...annotation, measurementSource: 'Human annotation' })} onPointerLeave={() => setHoveredAnnotation(null)}>
+                <g
+                  key={annotation.id}
+                  className={`annotation-shape ${selectedAnnotation?.id === annotation.id ? 'annotation-shape--selected' : ''}`}
+                  onClick={() => selectAnnotation(annotation)}
+                  onPointerEnter={() => showAnnotationMeasurement({ ...annotation, measurementSource: 'Human annotation' })}
+                  onPointerLeave={() => setHoveredAnnotation(null)}
+                >
                    <title>{annotation.label}</title>
                    {renderShape(editing?.id === annotation.id ? editing : annotation, annotation.color, false)}
                 </g>
              ))}
              {renderResizeHandles()}
              {aiVisible && aiResults.map((result) => result.geometry && <g key={`ai-${result.id}`} className="ai-result-shape" onPointerEnter={() => showAnnotationMeasurement(aiMeasurementTarget(result))} onPointerLeave={() => setHoveredAnnotation(null)}><title>{`${result.model_name} ${result.model_version}${result.confidence == null ? '' : ` · ${(result.confidence * 100).toFixed(1)}%`}`}</title>{renderShape({ ...result.geometry, id: `ai-${result.id}` }, '#d39a3c', false)}</g>)}
+             {/* ── HoVer-Net nucleus contours ───────────────────────────────── */}
+             {/* ── HoVer-Net AI Analyzed ROI Boundary ─────────────────────── */}
+             {aiAnalysis?.roi && viewerReady && (() => {
+               const rx = aiAnalysis.roi.x ?? aiAnalysis.roi.roi_x;
+               const ry = aiAnalysis.roi.y ?? aiAnalysis.roi.roi_y;
+               const rw = aiAnalysis.roi.width ?? aiAnalysis.roi.roi_width ?? 256;
+               const rh = aiAnalysis.roi.height ?? aiAnalysis.roi.roi_height ?? 256;
+               if (rx == null || ry == null) return null;
+               const p1 = imageToViewport(rx, ry);
+               const p2 = imageToViewport(rx + rw, ry + rh);
+               const boxW = p2.x - p1.x;
+               const boxH = p2.y - p1.y;
+               return (
+                 <g className="ai-roi-boundary">
+                   <rect
+                     x={p1.x}
+                     y={p1.y}
+                     width={boxW}
+                     height={boxH}
+                     fill="rgba(99, 102, 241, 0.08)"
+                     stroke="#6366f1"
+                     strokeWidth="2.5"
+                     strokeDasharray="6 4"
+                   />
+                   <g transform={`translate(${p1.x}, ${Math.max(16, p1.y - 6)})`}>
+                     <rect
+                       x="0"
+                       y="-14"
+                       width="150"
+                       height="18"
+                       rx="3"
+                       fill="#4f46e5"
+                     />
+                     <text
+                       x="6"
+                       y="-1"
+                       fill="#ffffff"
+                       fontSize="11"
+                       fontFamily="var(--font-sans, system-ui)"
+                       fontWeight="600"
+                     >
+                       AI Analyzed ROI (#{aiAnalysis.id})
+                     </text>
+                   </g>
+                 </g>
+               );
+             })()}
+             {aiAnalysis?.nuclei && viewerReady && aiAnalysis.nuclei.map((nuc) => {
+               const cls = PANNUKE_CLASSES.find((c) => c.key === nuc.type) || { color: '#6366f1' };
+               if (aiHiddenClasses.has(nuc.type)) return null;
+               if (!nuc.contour || nuc.contour.length < 3) return null;
+               // contour points are [x, y] in level-0 image coords
+               const pixelPts = nuc.contour.map(([cx, cy]) => imageToViewport(cx, cy));
+               const ptStr = pixelPts.map((p) => `${p.x},${p.y}`).join(' ');
+               const isSelected = aiSelectedNucleus?.id === nuc.id;
+               return (
+                 <g
+                   key={`nuc-${nuc.id}`}
+                   className="ai-nucleus-contour"
+                   onPointerEnter={(e) => {
+                     const bounds = svgOverlayRef.current?.getBoundingClientRect();
+                     if (bounds) setNucleusTooltip({ x: e.clientX - bounds.left, y: e.clientY - bounds.top, nuc });
+                   }}
+                   onPointerLeave={() => setNucleusTooltip(null)}
+                   onClick={() => { setAiSelectedNucleus(nuc); setNucleusTooltip(null); }}
+                 >
+                   <polygon
+                     points={ptStr}
+                     fill={`${cls.color}22`}
+                     stroke={cls.color}
+                     strokeWidth={isSelected ? 2.5 : 1.5}
+                     strokeOpacity={isSelected ? 1 : 0.82}
+                   />
+                 </g>
+               );
+             })}
              {draftGeometry && renderShape(draftGeometry, '#e85d75', true)}
           </svg>
           {hoveredAnnotation && <div className="annotation-hover-measurement" role="tooltip">
@@ -771,6 +907,18 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
               {measurement.imperial && <output>{measurement.imperial}</output>}
             </div>)}
           </div>}
+          {/* ── Nucleus hover tooltip ─────────────────────────────────── */}
+          {nucleusTooltip && (() => {
+            const { x, y, nuc } = nucleusTooltip;
+            const cls = PANNUKE_CLASSES.find((c) => c.key === nuc.type) || { color: '#6366f1', label: nuc.type };
+            return (
+              <div className="ai-nucleus-tooltip" style={{ top: y + 12, left: x + 10 }} role="tooltip">
+                <strong style={{ color: cls.color }}>{cls.label || nuc.type}</strong>
+                Conf: {nuc.type_prob != null ? `${(nuc.type_prob * 100).toFixed(1)}%` : '—'}
+                {' · '}Area: {nuc.area != null ? `${nuc.area.toFixed(0)} px²` : '—'}
+              </div>
+            );
+          })()}
           {draftGeometry && liveMeasurements.length > 0 && <div className="annotation-live-measurement" role="status">
             <strong>Live measurement</strong>
             {liveMeasurements.map((measurement) => <span key={measurement.label}>{measurement.label}: {measurement.value}</span>)}
@@ -816,12 +964,33 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
           {!bookmarks.length ? <p className="annotation-empty">No saved regions.</p> : bookmarks.map((bookmark) => <div className="viewer-bookmark" key={bookmark.id}><button type="button" onClick={() => openBookmark(bookmark)}>{bookmark.name}</button><button type="button" aria-label={`Delete ${bookmark.name}`} onClick={() => removeBookmark(bookmark)}><Trash2 size={13} /></button></div>)}
         </section>
         {aiResults.length > 0 && <section className="viewer-ai-results" aria-label="AI evidence"><div className="annotation-panel-heading"><div><h3>AI evidence</h3><span>{aiResults.length} results</span></div><button type="button" className="btn-control-secondary" onClick={() => setAiVisible((value) => !value)}>{aiVisible ? 'Hide' : 'Show'}</button></div>{aiResults.map((result) => <div className="viewer-ai-result" key={result.id}><strong>{result.model_name} {result.model_version}</strong><span>{result.result_type} · {result.confidence == null ? 'No confidence' : `${(result.confidence * 100).toFixed(1)}% confidence`}</span>{result.limitations && <small>{result.limitations}</small>}</div>)}</section>}
+        {/* ── HoVer-Net AI Analysis Panel ─────────────────────────────── */}
+        <AiAnalysisPanel
+          slide={slide}
+          roiRect={roiRect}
+          hiddenClasses={aiHiddenClasses}
+          onToggleClass={(key) => {
+            setAiHiddenClasses((prev) => {
+              const next = new Set(prev);
+              if (next.has(key)) next.delete(key); else next.add(key);
+              return next;
+            });
+          }}
+          selectedNucleus={aiSelectedNucleus}
+          onSelectNucleus={setAiSelectedNucleus}
+          onAnalysisReady={(analysis) => {
+            setAiAnalysis(analysis);
+            setAiSelectedNucleus(null);
+          }}
+          onPanToRoi={panToRoi}
+          onError={onError}
+        />
         {draft && <AnnotationForm title="New annotation" values={draft} calibration={calibration} onSubmit={saveNew} onCancel={() => setDraft(null)} saving={saving} />}
         {editing && <AnnotationForm title="Edit annotation" values={editing} calibration={calibration} onSubmit={saveEdit} onCancel={() => setEditing(null)} saving={saving} />}
         {annotationsLoading ? <p className="annotation-empty">Loading annotations…</p> : !annotations.length ?
           <p className="annotation-empty">No annotations yet. Choose a tool to mark a region.</p> :
-          <div className="annotation-list">{filteredAnnotations.map((annotation) => <div className="annotation-item" key={annotation.id}>
-            <button type="button" className="annotation-open" onClick={() => goTo(annotation)}>
+          <div className="annotation-list">{filteredAnnotations.map((annotation) => <div className={`annotation-item ${selectedAnnotation?.id === annotation.id ? 'annotation-item--selected' : ''}`} key={annotation.id}>
+            <button type="button" className="annotation-open" onClick={() => selectAnnotation(annotation)}>
               <span className="annotation-swatch"><svg aria-hidden="true" viewBox="0 0 8 24"><rect width="8" height="24" rx="3" fill={annotation.color} /></svg></span>
               <span><strong>{annotation.label}</strong><small>{annotation.note || 'No note'}</small>{measurementLabel(annotation) && <small>{measurementLabel(annotation)}</small>}</span>
             </button>
