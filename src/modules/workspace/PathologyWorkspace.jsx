@@ -59,6 +59,7 @@ export default function App() {
   const [wsiLimitMb, setWsiLimitMb] = useState(2048);
   const [showSlideForm, setShowSlideForm] = useState(false);
   const [showCreateCase, setShowCreateCase] = useState(searchParams.get('createCase') === '1');
+  const [selectedPatient, setSelectedPatient] = useState(null);
   const [inspectorTab, setInspectorTab] = useState('review');
   const [caseTimelineEvents, setCaseTimelineEvents] = useState([]);
   const [caseRelatedLinks, setCaseRelatedLinks] = useState([]);
