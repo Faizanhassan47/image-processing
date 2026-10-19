@@ -1,8 +1,7 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { API_BASE_URL } from '../../config';
 import { apiFetch } from '../../api';
-
-const AuthContext = createContext(null);
+import { AuthContext } from './AuthContext';
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -25,10 +24,30 @@ export const AuthProvider = ({ children }) => {
   };
 
   useEffect(() => {
-    checkAuth();
+    let mounted = true;
+    apiFetch(`${API_BASE_URL}/api/auth/me`)
+      .then(async (res) => {
+        if (!mounted) return;
+        if (res.ok) {
+          const data = await res.json();
+          if (mounted) setUser(data);
+        } else {
+          setUser(null);
+        }
+      })
+      .catch(() => {
+        if (mounted) setUser(null);
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+
     const clearUser = () => setUser(null);
     window.addEventListener('auth:unauthorized', clearUser);
-    return () => window.removeEventListener('auth:unauthorized', clearUser);
+    return () => {
+      mounted = false;
+      window.removeEventListener('auth:unauthorized', clearUser);
+    };
   }, []);
 
   const login = async (username, password) => {
@@ -61,6 +80,3 @@ export const AuthProvider = ({ children }) => {
     </AuthContext.Provider>
   );
 };
-
-// eslint-disable-next-line react-refresh/only-export-components
-export const useAuth = () => useContext(AuthContext);

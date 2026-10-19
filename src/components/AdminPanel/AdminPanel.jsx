@@ -40,8 +40,22 @@ export default function AdminPanel({ API }) {
   }, [API]);
 
   useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
+    let mounted = true;
+    (async () => {
+      try {
+        const response = await apiFetch(`${API}/api/users`);
+        if (!mounted) return;
+        if (response.ok) {
+          setUsers(await response.json());
+        } else {
+          toast.error('Failed to load users');
+        }
+      } catch {
+        if (mounted) toast.error('Error loading users');
+      }
+    })();
+    return () => { mounted = false; };
+  }, [API]);
 
   const handleCreateUser = async (e) => {
     e.preventDefault();

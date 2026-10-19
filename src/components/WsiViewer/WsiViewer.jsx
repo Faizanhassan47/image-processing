@@ -53,6 +53,7 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
   const elementRef = useRef(null);
   const workspaceRef = useRef(null);
   const viewerRef = useRef(null);
+  const [viewerInstance, setViewerInstance] = useState(null);
   const [viewerReady, setViewerReady] = useState(false);
   const [annotations, setAnnotations] = useState([]);
   const [annotationsLoading, setAnnotationsLoading] = useState(true);
@@ -177,7 +178,7 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
     });
     viewerRef.current = viewer;
     
-    viewer.addHandler('open', () => { setViewerReady(true); setLoadFailure(''); });
+    viewer.addHandler('open', () => { setViewerInstance(viewer); setViewerReady(true); setLoadFailure(''); });
     viewer.addHandler('open-failed', (event) => setLoadFailure(event.message || 'The slide descriptor could not be loaded.'));
     viewer.addHandler('tile-load-failed', (event) => {
       const now = Date.now();
@@ -200,6 +201,7 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
     
     return () => {
       setViewerReady(false);
+      setViewerInstance(null);
       viewerRef.current = null;
       viewer.destroy();
     };
@@ -276,12 +278,12 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
 
   // SVG coordinate conversions
   const imageToViewport = useCallback((x, y) => {
-    const viewer = viewerRef.current;
+    const viewer = viewerInstance;
     if (!viewer || !viewer.world.getItemAt(0)) return {x:0, y:0};
     const vp = viewer.world.getItemAt(0).imageToViewportCoordinates(x, y);
     const pixel = viewer.viewport.pixelFromPoint(vp, true);
     return { x: pixel.x, y: pixel.y };
-  }, []);
+  }, [viewerInstance]);
 
   useEffect(() => {
     const viewer = viewerRef.current;
