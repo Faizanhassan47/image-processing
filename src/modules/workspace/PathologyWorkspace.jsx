@@ -14,9 +14,11 @@ import Login from '../auth/Login';
 import { useAuth } from '../auth/AuthProvider';
 import { API_BASE_URL as API } from '../../config';
 import { apiFetch } from '../../api';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import useCaseWorklist from './useCaseWorklist';
 import Modal from '../../components/Modal/Modal';
+import PatientPicker from '../../components/PatientPicker/PatientPicker';
+import { patientService } from '../../services/patientService';
 
 function normalizeCase(item) {
   return {
@@ -35,6 +37,10 @@ const MAX_VIEWER_SCREENS = 4;
 
 export default function App() {
   const { user, logout } = useAuth();
+  const [searchParams] = useSearchParams();
+  const requestedPatientId = Number(searchParams.get('patient')) || null;
+  const requestedCaseId = Number(searchParams.get('case')) || null;
+  const requestedSlideId = Number(searchParams.get('slide')) || null;
   
   
   
@@ -51,7 +57,8 @@ export default function App() {
   const [isBackendHealthy, setIsBackendHealthy] = useState(null);
   const [wsiLimitMb, setWsiLimitMb] = useState(2048);
   const [showSlideForm, setShowSlideForm] = useState(false);
-  const [showCreateCase, setShowCreateCase] = useState(false);
+  const [showCreateCase, setShowCreateCase] = useState(searchParams.get('createCase') === '1');
+  const [selectedPatient, setSelectedPatient] = useState(null);
   const [inspectorTab, setInspectorTab] = useState('review');
   const [editingSlideId, setEditingSlideId] = useState(null);
   const [zoom, setZoom] = useState(1);
@@ -91,6 +98,13 @@ export default function App() {
       const data = await response.json();
       const normalized = data.map(normalizeCase);
       setCases(normalized);
+      if (requestedCaseId || requestedSlideId) {
+        const requested = normalized.find((item) => item.id === requestedCaseId || item.slides.some((slide) => slide.id === requestedSlideId));
+        if (requested) {
+          setSelectedCaseId(requested.id);
+          setSelectedSlideId(requestedSlideId && requested.slides.some((slide) => slide.id === requestedSlideId) ? requestedSlideId : requested.slides[0]?.id ?? null);
+        }
+      }
       setIsBackendHealthy(true);
       return normalized;
     } catch (error) {
@@ -98,7 +112,7 @@ export default function App() {
       toast.error(`Cannot connect to API (${error.message}).`);
       throw error;
     }
-  }, []);
+  }, [requestedCaseId, requestedSlideId]);
 
   useEffect(() => {
     if (!user) return;
@@ -201,6 +215,7 @@ export default function App() {
     event.preventDefault();
     if (busy) return;
     const form = event.currentTarget;
+    if (!selectedPatient) { toast.error('Select or register a patient before creating a case.'); return; }
     const file = form.elements.image.files[0];
     if (!validateFile(file)) return;
     setBusy(true);
@@ -209,7 +224,13 @@ export default function App() {
       const response = await apiFetch(`${API}/api/cases`, { method: 'POST', body: new FormData(form) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail || 'Could not create case');
+      try {
+        await patientService.linkCase(selectedPatient.id, { case_id: data.id, accession_number: data.case_id, priority: 'Routine' });
+      } catch (linkError) {
+        throw new Error(linkError.message || 'Case created, but patient linking failed');
+      }
       form.reset();
+      setSelectedPatient(null);
       await refresh();
       setSelectedCaseId(data.id);
       setSelectedSlideId(data.slides[0]?.id ?? null);
@@ -412,7 +433,7 @@ export default function App() {
     <Field label={`File (JPG/PNG 10 MB, SVS ${wsiLimitMb} MB) *`}><input name="image" required type="file" accept="image/jpeg,image/png,.svs" /></Field>
     <button className="btn-primary" disabled={busy}><Upload size={16} /> {busy ? 'Uploading…' : 'Upload Slide'}</button>
   </form> : null;
-  const canRemoveSlides = ['Histotechnologist', SYSTEM_ADMIN_ROLE, SUPER_ADMIN_ROLE].includes(user?.role);
+  const canRemoveSlides = ['Laboratory Manager', SYSTEM_ADMIN_ROLE, SUPER_ADMIN_ROLE].includes(user?.role);
 
   if (!user) return <Login />;
   return (
@@ -424,6 +445,7 @@ export default function App() {
             <p className="subtitle">Review cases and compare slides.</p></div>
         </div>
         <div className="header-actions">
+          <Link to="/patients" className="btn-control-secondary admin-route-link">Patients</Link>
           {isAdministratorRole(user?.role) && (
             <Link to="/admin" className="btn-control-secondary admin-route-link">
               Administration
@@ -447,12 +469,13 @@ export default function App() {
         </button>
         {showCreateCase && <>
         <form onSubmit={createCase} className="upload-form">
+          <PatientPicker value={selectedPatient} onChange={setSelectedPatient} initialPatientId={requestedPatientId} disabled={busy} />
           <div className="form-grid case-create-grid">
             <Field label="Case ID *"><input name="case_id" required maxLength={80} placeholder="DEMO-001" /></Field>
             <Field label="Case description"><input name="description" placeholder="Specimen or case notes" /></Field>
             <Field label="First slide label"><input name="slide_label" defaultValue="Slide 1" /></Field>
             <Field label="Optional first slide"><input name="image" type="file" accept="image/jpeg,image/png,.svs" /></Field>
-            <button className="btn-primary" disabled={busy}><Plus size={18} /> Create case</button>
+            <button className="btn-primary" disabled={busy || !selectedPatient} title={selectedPatient ? undefined : 'Select a patient first'}><Plus size={18} /> Create case</button>
           </div>
         </form></>}
       </section>
@@ -604,7 +627,7 @@ export default function App() {
                 <button type="button" className="btn-control-secondary" onClick={() => setEditingSlideId(null)}>Cancel</button>
               </form>}
 
-              {selectedSlide && editingSlideId === selectedSlide.id && ['Histotechnologist', SYSTEM_ADMIN_ROLE, SUPER_ADMIN_ROLE].includes(user?.role) && <form className="edit-slide-form qc-form" onSubmit={(event) => saveSlideQc(event, selectedSlide)}>
+              {selectedSlide && editingSlideId === selectedSlide.id && ['Laboratory Manager', 'Pathologist', SYSTEM_ADMIN_ROLE, SUPER_ADMIN_ROLE].includes(user?.role) && <form className="edit-slide-form qc-form" onSubmit={(event) => saveSlideQc(event, selectedSlide)}>
                 <h4 className="qc-title">Quality control</h4>
                 <Field label="Status">
                   <select name="qc_status" defaultValue={selectedSlide.qc_status || ''}>

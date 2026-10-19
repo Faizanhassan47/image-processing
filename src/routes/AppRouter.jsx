@@ -10,6 +10,8 @@ const Workspace = lazy(() => import('../modules/workspace/PathologyWorkspace'));
 const AdminPanel = lazy(() => import('../components/AdminPanel/AdminPanel'));
 const AdministrationLogs = lazy(() => import('../components/AdministrationLogs/AdministrationLogs'));
 const PlatformOperations = lazy(() => import('../modules/platform/PlatformOperations'));
+const PatientDirectory = lazy(() => import('../modules/patients/PatientDirectory'));
+const PatientProfile = lazy(() => import('../modules/patients/PatientProfile'));
 
 function LoadingScreen() { return <main className="route-loading" aria-live="polite"><span className="loading-spinner" /> Loading workspace…</main>; }
 function ProtectedRoute({ adminOnly = false, children }) {
@@ -32,5 +34,7 @@ export default function AppRouter() { return <BrowserRouter><Suspense fallback={
   <Route path="/admin" element={<ProtectedRoute adminOnly><ErrorBoundary title="The admin panel could not be displayed"><AdminPage /></ErrorBoundary></ProtectedRoute>} />
   <Route path="/admin/logs" element={<ProtectedRoute adminOnly><ErrorBoundary title="Activity logs could not be displayed"><AdminLogsPage /></ErrorBoundary></ProtectedRoute>} />
   <Route path="/platform" element={<ProtectedRoute adminOnly><ErrorBoundary title="Platform operations could not be displayed"><PlatformOperations /></ErrorBoundary></ProtectedRoute>} />
+  <Route path="/patients" element={<ProtectedRoute><ErrorBoundary title="The patient directory could not be displayed"><PatientDirectory /></ErrorBoundary></ProtectedRoute>} />
+  <Route path="/patients/:patientId" element={<ProtectedRoute><ErrorBoundary title="The patient profile could not be displayed"><PatientProfile /></ErrorBoundary></ProtectedRoute>} />
   <Route path="*" element={<NotFound />} />
 </Routes></Suspense></BrowserRouter>; }

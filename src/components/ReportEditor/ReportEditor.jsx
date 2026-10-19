@@ -33,7 +33,25 @@ export default function ReportEditor({ selectedCase, selectSlide, setMessage }) 
     }
   }, [selectedCase, setMessage]);
 
-  useEffect(() => { fetchReports(); }, [fetchReports]);
+  useEffect(() => {
+    let mounted = true;
+    if (!selectedCase) return;
+    (async () => {
+      try {
+        const response = await apiFetch(`${API}/api/cases/${selectedCase.id}/reports`);
+        if (!mounted) return;
+        if (!response.ok) throw new Error('Could not load reports');
+        const data = await response.json();
+        if (mounted) {
+          setReports(data);
+          setCurrentDraft(data.find((report) => report.status === 'Draft') || null);
+        }
+      } catch (error) {
+        if (mounted) setMessage({ text: error.message, type: 'error' });
+      }
+    })();
+    return () => { mounted = false; };
+  }, [selectedCase, setMessage]);
 
   const createDraft = async () => {
     if (busy) return;

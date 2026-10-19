@@ -1,12 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { SUPER_ADMIN_ROLE, SYSTEM_ADMIN_ROLE, USER_ROLES } from './roles';
+import { SYSTEM_ADMIN_ROLE, USER_ROLES } from './roles';
 
 describe('assignable user roles', () => {
-  it('includes System Administrator and excludes the protected Super Administrator role', () => {
+  it('contains exactly the approved three-role catalogue', () => {
     const roleValues = USER_ROLES.map(({ value }) => value);
-
-    expect(roleValues).toContain(SYSTEM_ADMIN_ROLE);
-    expect(roleValues).not.toContain(SUPER_ADMIN_ROLE);
+    expect(roleValues).toEqual([SYSTEM_ADMIN_ROLE, 'Laboratory Manager', 'Pathologist']);
   });
 });
