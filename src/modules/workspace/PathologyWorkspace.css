@@ -2081,3 +2081,112 @@ body {
     min-height: 620px;
   }
 }
+
+/* Unified Case Workspace Inspector Styles */
+.case-inspector {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
+}
+
+.inspector-tabs {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: var(--spacing-xs);
+  overflow-x: auto;
+}
+
+.inspector-tab {
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.inspector-tab:hover {
+  color: var(--color-text);
+  background: var(--color-surface-hover);
+}
+
+.inspector-tab--active {
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+  font-weight: 600;
+}
+
+.inspector-tab-content {
+  padding: var(--spacing-xs) 0;
+}
+
+.timeline-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.timeline-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: var(--spacing-sm);
+  padding: 6px 10px;
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
+}
+
+.timeline-badge {
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-elevated);
+  font-weight: 600;
+  font-size: 0.7rem;
+}
+
+.timeline-time {
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+}
+
+.links-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.link-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+}
+
+.link-item-reason {
+  margin: 2px 0 0;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.link-item-author {
+  color: var(--color-text-muted);
+}

@@ -18,7 +18,23 @@ export default function ReportEditor({ selectedCase, selectSlide, setMessage }) 
   const [activeTab, setActiveTab] = useState('edit');
   const [confirmFinalize, setConfirmFinalize] = useState(false);
   const [annotationsBySlide, setAnnotationsBySlide] = useState({});
+  const [templates, setTemplates] = useState([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
   useUnsavedChanges(isDirty);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const response = await apiFetch(`${API}/api/platform/report-templates`);
+        if (response.ok && active) {
+          const list = await response.json();
+          setTemplates(list);
+        }
+      } catch { /* Report templates are optional */ }
+    })();
+    return () => { active = false; };
+  }, []);
 
   const fetchReports = useCallback(async () => {
     if (!selectedCase) return;
@@ -52,6 +68,25 @@ export default function ReportEditor({ selectedCase, selectSlide, setMessage }) 
     })();
     return () => { mounted = false; };
   }, [selectedCase, setMessage]);
+
+  const applyTemplate = (templateId) => {
+    setSelectedTemplateId(templateId);
+    if (!templateId || !currentDraft) return;
+    const tmpl = templates.find((t) => String(t.id) === String(templateId));
+    if (!tmpl) return;
+    try {
+      const sections = typeof tmpl.sections_json === 'string' ? JSON.parse(tmpl.sections_json) : (tmpl.sections || []);
+      const formattedNotes = sections.map((sec) => `[${sec.toUpperCase()}]\n- \n`).join('\n');
+      setCurrentDraft((draft) => ({
+        ...draft,
+        microscopic_findings: draft.microscopic_findings ? `${draft.microscopic_findings}\n\n${formattedNotes}` : formattedNotes,
+      }));
+      setIsDirty(true);
+      setMessage({ text: `Applied template: ${tmpl.name}`, type: 'success' });
+    } catch {
+      // Ignored
+    }
+  };
 
   const createDraft = async () => {
     if (busy) return;
@@ -149,6 +184,15 @@ export default function ReportEditor({ selectedCase, selectSlide, setMessage }) 
     </div>
 
     {activeTab === 'edit' && currentDraft && <form className="report-form" onSubmit={handleUpdate} onChange={() => setIsDirty(true)}>
+      {templates.length > 0 && <div className="report-template-bar">
+        <label className="field-group">
+          <span className="field-label">Load Structured Template</span>
+          <select value={selectedTemplateId} onChange={(e) => applyTemplate(e.target.value)} aria-label="Select report template">
+            <option value="">Select a template to insert sections...</option>
+            {templates.map((tmpl) => <option key={tmpl.id} value={tmpl.id}>{tmpl.name}</option>)}
+          </select>
+        </label>
+      </div>}
       <div className="report-field-grid">
         <Field label="Specimen and clinical details"><textarea name="specimen_clinical" defaultValue={currentDraft.specimen_clinical} rows={3} /></Field>
         <Field label="Gross description"><textarea name="gross_description" defaultValue={currentDraft.gross_description} rows={3} /></Field>

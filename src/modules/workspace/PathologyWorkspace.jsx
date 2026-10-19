@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import {
   Calendar, Edit3, FileImage, Layers, ClipboardCheck, History, Microscope, Columns, X,
-  Plus, Search, Upload, UserRound, LogOut, ChevronDown, Trash2
+  Plus, Search, Upload, UserRound, LogOut, ChevronDown, Trash2, Link2, Clock
 } from 'lucide-react';
 import Empty from '../../components/EmptyState/EmptyState';
 import Field from '../../components/Field/Field';
@@ -19,6 +19,7 @@ import useCaseWorklist from './useCaseWorklist';
 import Modal from '../../components/Modal/Modal';
 import PatientPicker from '../../components/PatientPicker/PatientPicker';
 import { patientService } from '../../services/patientService';
+import { platformService } from '../../services/platformService';
 
 function normalizeCase(item) {
   return {
@@ -58,8 +59,11 @@ export default function App() {
   const [wsiLimitMb, setWsiLimitMb] = useState(2048);
   const [showSlideForm, setShowSlideForm] = useState(false);
   const [showCreateCase, setShowCreateCase] = useState(searchParams.get('createCase') === '1');
-  const [selectedPatient, setSelectedPatient] = useState(null);
   const [inspectorTab, setInspectorTab] = useState('review');
+  const [caseTimelineEvents, setCaseTimelineEvents] = useState([]);
+  const [caseRelatedLinks, setCaseRelatedLinks] = useState([]);
+  const [timelineLoading, setTimelineLoading] = useState(false);
+  const [linksLoading, setLinksLoading] = useState(false);
   const [editingSlideId, setEditingSlideId] = useState(null);
   const [zoom, setZoom] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -123,6 +127,29 @@ export default function App() {
         .catch(() => {});
     });
   }, [refresh, user]);
+
+  useEffect(() => {
+    if (!selectedCaseId) {
+      setCaseTimelineEvents([]);
+      setCaseRelatedLinks([]);
+      return;
+    }
+    const controller = new AbortController();
+    if (inspectorTab === 'timeline') {
+      setTimelineLoading(true);
+      platformService.caseTimeline(selectedCaseId, controller.signal)
+        .then((events) => setCaseTimelineEvents(events || []))
+        .catch((err) => { if (err.name !== 'AbortError') toast.error(`Timeline error: ${err.message}`); })
+        .finally(() => setTimelineLoading(false));
+    } else if (inspectorTab === 'links') {
+      setLinksLoading(true);
+      platformService.caseLinks(selectedCaseId, controller.signal)
+        .then((links) => setCaseRelatedLinks(links || []))
+        .catch((err) => { if (err.name !== 'AbortError') toast.error(`Links error: ${err.message}`); })
+        .finally(() => setLinksLoading(false));
+    }
+    return () => controller.abort();
+  }, [selectedCaseId, inspectorTab]);
 
   const resetRasterView = () => {
     setZoom2(1);
@@ -446,6 +473,11 @@ export default function App() {
         </div>
         <div className="header-actions">
           <Link to="/patients" className="btn-control-secondary admin-route-link">Patients</Link>
+          {['Laboratory Manager', SYSTEM_ADMIN_ROLE, SUPER_ADMIN_ROLE].includes(user?.role) && (
+            <Link to="/platform" className="btn-control-secondary admin-route-link">
+              Operations & Ingestion
+            </Link>
+          )}
           {isAdministratorRole(user?.role) && (
             <Link to="/admin" className="btn-control-secondary admin-route-link">
               Administration
@@ -526,8 +558,10 @@ export default function App() {
 
             <aside className="case-inspector">
               <div className="inspector-tabs" role="tablist" aria-label="Case details">
-                <button type="button" role="tab" aria-selected={inspectorTab === 'review'} className={inspectorTab === 'review' ? 'inspector-tab inspector-tab--active' : 'inspector-tab'} onClick={() => setInspectorTab('review')}>Review and QC</button>
-                <button type="button" role="tab" aria-selected={inspectorTab === 'report'} className={inspectorTab === 'report' ? 'inspector-tab inspector-tab--active' : 'inspector-tab'} onClick={() => setInspectorTab('report')}>Report</button>
+                <button type="button" role="tab" aria-selected={inspectorTab === 'review'} className={inspectorTab === 'review' ? 'inspector-tab inspector-tab--active' : 'inspector-tab'} onClick={() => setInspectorTab('review')}><ClipboardCheck size={14} /> Review & QC</button>
+                <button type="button" role="tab" aria-selected={inspectorTab === 'timeline'} className={inspectorTab === 'timeline' ? 'inspector-tab inspector-tab--active' : 'inspector-tab'} onClick={() => setInspectorTab('timeline')}><Clock size={14} /> Timeline</button>
+                <button type="button" role="tab" aria-selected={inspectorTab === 'links'} className={inspectorTab === 'links' ? 'inspector-tab inspector-tab--active' : 'inspector-tab'} onClick={() => setInspectorTab('links')}><Link2 size={14} /> Related Cases</button>
+                <button type="button" role="tab" aria-selected={inspectorTab === 'report'} className={inspectorTab === 'report' ? 'inspector-tab inspector-tab--active' : 'inspector-tab'} onClick={() => setInspectorTab('report')}><Edit3 size={14} /> Report</button>
               </div>
             {inspectorTab === 'review' && <section className="review-panel" key={`review-${selectedCase.id}`}>
               <div className="review-panel-title"><ClipboardCheck size={17} /><div><h3>Case review</h3>
@@ -571,6 +605,36 @@ export default function App() {
                       <p>{entry.change_type === 'status' ? 'Status' : 'Reviewer'}: {entry.previous_value || 'Unassigned'} → {entry.new_value || 'Unassigned'}</p></article>)}
                 </details>
               </div>
+            </section>}
+
+            {inspectorTab === 'timeline' && <section className="review-panel inspector-tab-content" key={`timeline-${selectedCase.id}`}>
+              <div className="review-panel-title"><Clock size={17} /><div><h3>Audit & Case Timeline</h3><span>Historical lifecycle events for case {selectedCase.case_id}.</span></div></div>
+              {timelineLoading ? <p className="review-empty">Loading case timeline…</p> :
+               !caseTimelineEvents.length ? <p className="review-empty">No recorded timeline events.</p> :
+               <div className="timeline-list">
+                 {caseTimelineEvents.map((evt, idx) => (
+                   <div key={idx} className="timeline-item">
+                     <span className="timeline-badge">{evt.event_type}</span>
+                     <div><strong>{evt.summary}</strong>{evt.actor && <small className="link-item-author">by {evt.actor}</small>}</div>
+                     <time className="timeline-time" dateTime={evt.event_at}>{formatDate(evt.event_at)}</time>
+                   </div>
+                 ))}
+               </div>}
+            </section>}
+
+            {inspectorTab === 'links' && <section className="review-panel inspector-tab-content" key={`links-${selectedCase.id}`}>
+              <div className="review-panel-title"><Link2 size={17} /><div><h3>Related Cases</h3><span>Links to prior or associated patient cases.</span></div></div>
+              {linksLoading ? <p className="review-empty">Loading related cases…</p> :
+               !caseRelatedLinks.length ? <p className="review-empty">No linked prior cases.</p> :
+               <div className="links-list">
+                 {caseRelatedLinks.map((link) => (
+                   <div key={link.id} className="link-item">
+                     <div><strong>Case #{link.related_case_id === selectedCase.id ? link.case_id : link.related_case_id}</strong> <small>({link.link_type})</small>
+                       {link.reason && <p className="link-item-reason">{link.reason}</p>}</div>
+                     <small className="link-item-author">by {link.created_by}</small>
+                   </div>
+                 ))}
+               </div>}
             </section>}
 
             {inspectorTab === 'report' && <ReportEditor selectedCase={selectedCase} selectSlide={selectSlide} setMessage={reportMessage} />}

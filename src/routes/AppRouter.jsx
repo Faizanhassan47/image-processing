@@ -14,11 +14,12 @@ const PatientDirectory = lazy(() => import('../modules/patients/PatientDirectory
 const PatientProfile = lazy(() => import('../modules/patients/PatientProfile'));
 
 function LoadingScreen() { return <main className="route-loading" aria-live="polite"><span className="loading-spinner" /> Loading workspace…</main>; }
-function ProtectedRoute({ adminOnly = false, children }) {
+function ProtectedRoute({ adminOnly = false, operationsAccess = false, children }) {
   const { user, loading } = useAuth();
   if (loading) return <LoadingScreen />;
   if (!user) return <Login />;
   if (adminOnly && !isAdministratorRole(user.role)) return <Navigate to="/" replace />;
+  if (operationsAccess && !isAdministratorRole(user.role) && user.role !== 'Laboratory Manager') return <Navigate to="/" replace />;
   return children;
 }
 function AdminShell({ title, children }) { return <div className="admin-page-layout">
@@ -33,7 +34,7 @@ export default function AppRouter() { return <BrowserRouter><Suspense fallback={
   <Route path="/" element={<ProtectedRoute><ErrorBoundary title="The workspace could not be displayed"><Workspace /></ErrorBoundary></ProtectedRoute>} />
   <Route path="/admin" element={<ProtectedRoute adminOnly><ErrorBoundary title="The admin panel could not be displayed"><AdminPage /></ErrorBoundary></ProtectedRoute>} />
   <Route path="/admin/logs" element={<ProtectedRoute adminOnly><ErrorBoundary title="Activity logs could not be displayed"><AdminLogsPage /></ErrorBoundary></ProtectedRoute>} />
-  <Route path="/platform" element={<ProtectedRoute adminOnly><ErrorBoundary title="Platform operations could not be displayed"><PlatformOperations /></ErrorBoundary></ProtectedRoute>} />
+  <Route path="/platform" element={<ProtectedRoute operationsAccess><ErrorBoundary title="Platform operations could not be displayed"><PlatformOperations /></ErrorBoundary></ProtectedRoute>} />
   <Route path="/patients" element={<ProtectedRoute><ErrorBoundary title="The patient directory could not be displayed"><PatientDirectory /></ErrorBoundary></ProtectedRoute>} />
   <Route path="/patients/:patientId" element={<ProtectedRoute><ErrorBoundary title="The patient profile could not be displayed"><PatientProfile /></ErrorBoundary></ProtectedRoute>} />
   <Route path="*" element={<NotFound />} />
