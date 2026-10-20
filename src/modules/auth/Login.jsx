@@ -5,7 +5,7 @@ import { useAuth } from './AuthProvider';
 import './Login.css';
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, sessionExpired } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -28,6 +28,11 @@ export default function Login() {
         <h1 id="login-title">Digital Pathology</h1>
         <p className="login-subtitle">Sign in to continue to the case worklist.</p>
       </header>
+      {sessionExpired && (
+        <div className="login-session-expired-banner" role="alert">
+          Session expired — please sign in again
+        </div>
+      )}
       <form onSubmit={handleSubmit}>
         <div className="form-group">
           <label htmlFor="login-username">Username</label>
