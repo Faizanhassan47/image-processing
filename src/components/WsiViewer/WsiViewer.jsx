@@ -516,12 +516,45 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
       if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLSelectElement) return;
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z' && draft) { event.preventDefault(); setRedoDraft(draft); setDraft(null); return; }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'y' && redoDraft) { event.preventDefault(); setDraft(redoDraft); setRedoDraft(null); return; }
-      const actions = {
-        '+': () => zoomBy(1.25), '=': () => zoomBy(1.25), '-': () => zoomBy(0.8),
-        '0': reset, 'f': fit, 'r': () => rotateBy(90), 'b': saveBookmark,
+      
+      const panStep = 0.15; // Viewport fraction
+      const panBy = (dx, dy) => {
+        const viewport = viewerRef.current?.viewport;
+        if (!viewport) return;
+        const currentCenter = viewport.getCenter(true);
+        const bounds = viewport.getBounds(true);
+        viewport.panTo(new OpenSeadragon.Point(
+          currentCenter.x + dx * bounds.width * panStep,
+          currentCenter.y + dy * bounds.height * panStep
+        ), true);
       };
-      const action = actions[event.key.toLowerCase()];
-      if (action) { event.preventDefault(); action(); }
+
+      const actions = {
+        '+': () => zoomBy(1.25),
+        '=': () => zoomBy(1.25),
+        '-': () => zoomBy(0.8),
+        '_': () => zoomBy(0.8),
+        '0': reset,
+        'f': fit,
+        'r': () => rotateBy(90),
+        'b': saveBookmark,
+        'arrowup': () => panBy(0, -1),
+        'arrowdown': () => panBy(0, 1),
+        'arrowleft': () => panBy(-1, 0),
+        'arrowright': () => panBy(1, 0),
+        '1': () => setDrawMode(null),              // 1: Pan / Inspect
+        '2': () => setDrawMode('point'),           // 2: Point Marker
+        '3': () => setDrawMode('rectangle'),       // 3: Rectangle Region
+        '4': () => setDrawMode('polygon'),         // 4: Polygon Region
+        '5': () => setDrawMode('line'),            // 5: Line Measurement
+      };
+
+      const key = event.key.toLowerCase();
+      const action = actions[key];
+      if (action) {
+        event.preventDefault();
+        action();
+      }
     };
     document.addEventListener('keydown', keydown);
     return () => document.removeEventListener('keydown', keydown);

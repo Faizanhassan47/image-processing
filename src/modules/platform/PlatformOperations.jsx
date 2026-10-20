@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  Activity, AlertTriangle, Bot, CheckCircle, Clock, DatabaseBackup,
+  Activity, AlertTriangle, Bot, CheckCircle, Clock, Cpu, DatabaseBackup,
   FileImage, HardDrive, RefreshCw, ServerCog, ShieldAlert, Waypoints,
   Sliders, Layers, Filter
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Link } from 'react-router-dom';
 import { platformService } from '../../services/platformService';
+import Hl7Sandbox from './Hl7Sandbox';
 import './PlatformOperations.css';
 
 const emptyData = {
@@ -183,6 +184,15 @@ export default function PlatformOperations() {
           onClick={() => setActiveTab('matrix')}
         >
           <Sliders size={15} /> Scanner Compatibility
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'hl7'}
+          className={`ops-nav-tab ${activeTab === 'hl7' ? 'ops-nav-tab--active' : ''}`}
+          onClick={() => setActiveTab('hl7')}
+        >
+          <Waypoints size={15} /> HL7 v2 Sandbox
         </button>
         <button
           type="button"
@@ -510,20 +520,82 @@ export default function PlatformOperations() {
         <div className="ops-grid">
           <section className="ops-card">
             <header>
+              <Cpu />
+              <div>
+                <h2>Live Hardware Telemetry</h2>
+                <p>Host processor and system memory utilization</p>
+              </div>
+            </header>
+            <div className="ops-telemetry-body">
+              <div className="ops-telemetry-row">
+                <div className="ops-telemetry-meta">
+                  <span>CPU Load</span>
+                  <strong>{health?.hardware?.cpu_percent !== undefined ? `${health.hardware.cpu_percent}%` : '--'}</strong>
+                </div>
+                <div className="ops-progress-bar">
+                  <div
+                    className="ops-progress-fill"
+                    style={{
+                      width: `${Math.min(100, Math.max(0, health?.hardware?.cpu_percent || 0))}%`,
+                      background: (health?.hardware?.cpu_percent || 0) > 85 ? 'var(--color-danger)' : 'var(--color-primary)'
+                    }}
+                  />
+                </div>
+                <small className="ops-muted">
+                  {health?.hardware?.cpu_count_logical ? `${health.hardware.cpu_count_logical} Logical Cores (${health.hardware.cpu_count_physical || 'N/A'} Physical)` : 'Monitoring active'}
+                </small>
+              </div>
+
+              <div className="ops-telemetry-row">
+                <div className="ops-telemetry-meta">
+                  <span>RAM Utilization</span>
+                  <strong>{health?.hardware?.memory_used_percent !== undefined ? `${health.hardware.memory_used_percent}%` : '--'}</strong>
+                </div>
+                <div className="ops-progress-bar">
+                  <div
+                    className="ops-progress-fill"
+                    style={{
+                      width: `${Math.min(100, Math.max(0, health?.hardware?.memory_used_percent || 0))}%`,
+                      background: (health?.hardware?.memory_used_percent || 0) > 90 ? 'var(--color-danger)' : 'var(--color-primary)'
+                    }}
+                  />
+                </div>
+                <small className="ops-muted">
+                  {health?.hardware?.memory_total_bytes
+                    ? `${(health.hardware.memory_used_bytes / (1024 ** 3)).toFixed(1)} GB used of ${(health.hardware.memory_total_bytes / (1024 ** 3)).toFixed(1)} GB (${(health.hardware.memory_free_bytes / (1024 ** 3)).toFixed(1)} GB available)`
+                    : 'Memory metrics active'}
+                </small>
+              </div>
+            </div>
+          </section>
+
+          <section className="ops-card">
+            <header>
               <HardDrive />
               <div>
                 <h2>Storage Utilization</h2>
                 <p>{health ? `${health.storage.path}` : 'Storage repository'}</p>
               </div>
             </header>
-            <div style={{ padding: 'var(--spacing-md) 0' }}>
-              <p>Capacity: <strong>{health ? `${health.storage.used_percent}% used` : '--'}</strong></p>
-              <div style={{ height: '8px', background: 'var(--color-surface-elevated)', borderRadius: '4px', overflow: 'hidden', margin: '8px 0' }}>
-                <div style={{ width: `${health?.storage?.used_percent || 0}%`, height: '100%', background: 'var(--color-primary)' }} />
+            <div className="ops-telemetry-body">
+              <div className="ops-telemetry-row">
+                <div className="ops-telemetry-meta">
+                  <span>Primary Storage Volume</span>
+                  <strong>{health ? `${health.storage.used_percent}% used` : '--'}</strong>
+                </div>
+                <div className="ops-progress-bar">
+                  <div
+                    className="ops-progress-fill"
+                    style={{
+                      width: `${health?.storage?.used_percent || 0}%`,
+                      background: (health?.storage?.used_percent || 0) > 90 ? 'var(--color-danger)' : 'var(--color-primary)'
+                    }}
+                  />
+                </div>
+                <small className="ops-muted">
+                  {health ? `${(health.storage.free / (1024 * 1024 * 1024)).toFixed(1)} GB free of ${(health.storage.total / (1024 * 1024 * 1024)).toFixed(1)} GB` : ''}
+                </small>
               </div>
-              <small style={{ color: 'var(--color-text-muted)' }}>
-                {health ? `${(health.storage.free / (1024 * 1024 * 1024)).toFixed(1)} GB free of ${(health.storage.total / (1024 * 1024 * 1024)).toFixed(1)} GB` : ''}
-              </small>
             </div>
           </section>
 
@@ -582,6 +654,10 @@ export default function PlatformOperations() {
             {!data.models.length && <p className="ops-empty">No AI models registered.</p>}
           </section>
         </div>
+      )}
+
+      {!loading && activeTab === 'hl7' && (
+        <Hl7Sandbox onMessageProcessed={() => load()} />
       )}
     </main>
   );

@@ -2,6 +2,7 @@ export const USER_ROLES = [
   { value: 'System Administrator', label: 'System Administrator' },
   { value: 'Laboratory Manager', label: 'Laboratory Manager / Supervisor' },
   { value: 'Pathologist', label: 'Pathologist' },
+  { value: 'Auditor', label: 'Auditor / Read-Only User' },
 ];
 
 export const SYSTEM_ADMIN_ROLE = 'System Administrator';
@@ -15,4 +16,16 @@ export function isProtectedSuperAdmin(username) {
 
 export function isAdministratorRole(role) {
   return role === SYSTEM_ADMIN_ROLE || role === SUPER_ADMIN_ROLE;
+}
+
+export function isIntakeRole(role) {
+  return role === SYSTEM_ADMIN_ROLE || role === 'Laboratory Manager';
+}
+
+export function isClinicalReadRole(role) {
+  return role === SYSTEM_ADMIN_ROLE || role === 'Laboratory Manager' || role === 'Pathologist' || role === 'Auditor';
+}
+
+export function isAuditorRole(role) {
+  return role === 'Auditor';
 }
