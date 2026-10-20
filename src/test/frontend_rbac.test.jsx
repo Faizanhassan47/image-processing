@@ -2,26 +2,34 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import React from 'react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
-import { isAdministratorRole, isClinicalReadRole, isIntakeRole } from '../config/roles';
+import { isAdministratorRole, isClinicalReadRole, isIntakeRole, isAuditorRole } from '../config/roles';
 
 describe('Role-Based Access Control configuration', () => {
   it('correctly verifies System Administrator role privileges', () => {
     expect(isAdministratorRole('System Administrator')).toBe(true);
     expect(isAdministratorRole('Laboratory Manager')).toBe(false);
     expect(isAdministratorRole('Pathologist')).toBe(false);
+    expect(isAdministratorRole('Auditor')).toBe(false);
   });
 
   it('correctly grants intake roles to Administrator and Laboratory Manager only', () => {
     expect(isIntakeRole('System Administrator')).toBe(true);
     expect(isIntakeRole('Laboratory Manager')).toBe(true);
     expect(isIntakeRole('Pathologist')).toBe(false);
+    expect(isIntakeRole('Auditor')).toBe(false);
   });
 
-  it('correctly grants clinical read roles to all three standard roles', () => {
+  it('correctly grants clinical read roles to all authorized roles including Auditor', () => {
     expect(isClinicalReadRole('System Administrator')).toBe(true);
     expect(isClinicalReadRole('Laboratory Manager')).toBe(true);
     expect(isClinicalReadRole('Pathologist')).toBe(true);
+    expect(isClinicalReadRole('Auditor')).toBe(true);
     expect(isClinicalReadRole('Guest')).toBe(false);
+  });
+
+  it('correctly identifies Auditor role', () => {
+    expect(isAuditorRole('Auditor')).toBe(true);
+    expect(isAuditorRole('Pathologist')).toBe(false);
   });
 });
 

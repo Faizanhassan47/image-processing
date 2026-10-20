@@ -28,7 +28,7 @@ export const patientService = {
   create: (patient, signal) => request('', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patient), signal }),
   get: (id, signal) => request(`/${id}`, { signal }),
   update: (id, patient, signal) => request(`/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patient), signal }),
-  delete: (id, signal) => request(`/${id}`, { method: 'DELETE', signal }),
+  delete: (id, cascade = true, signal) => request(`/${id}?cascade_cases=${cascade ? 'true' : 'false'}`, { method: 'DELETE', signal }),
   profile: (id, signal) => request(`/${id}/complete-profile`, { signal }),
   history: (id, signal) => request(`/${id}/medical-history`, { signal }),
   saveHistory: (id, history, signal) => request(`/${id}/medical-history`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(history), signal }),
