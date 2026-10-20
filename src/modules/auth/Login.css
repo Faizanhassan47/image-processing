@@ -20,5 +20,18 @@
 .login-disclaimer { margin: 24px 0 0; padding-top: 18px; color: var(--color-text-muted); border-top: 1px solid var(--color-border); font-size: var(--font-size-xs); line-height: 1.5; }
 .field-hint { margin: 6px 0 0; font-size: var(--font-size-xs); }
 .field-hint--warning { color: var(--color-warning-text); }
+.login-session-expired-banner {
+  margin-bottom: 18px;
+  padding: 10px 14px;
+  background: var(--color-warning-soft, #fff3cd);
+  color: var(--color-warning-text, #856404);
+  border: 1px solid var(--color-warning-border, #ffeeba);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium, 500);
+  line-height: 1.4;
+  text-align: center;
+}
 .loading-spinner--button { width: 14px; height: 14px; border-color: rgba(255,255,255,.4); border-top-color: #fff; }
 @media (max-width: 480px) { .login-container { padding: 12px; } .login-box { padding: 26px 22px; } }
+

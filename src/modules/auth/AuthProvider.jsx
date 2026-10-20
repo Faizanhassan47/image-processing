@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import toast from 'react-hot-toast';
 import { API_BASE_URL } from '../../config';
 import { apiFetch } from '../../api';
 import { AuthContext } from './AuthContext';
@@ -6,6 +7,9 @@ import { AuthContext } from './AuthContext';
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [sessionExpired, setSessionExpired] = useState(false);
+  const userRef = useRef(user);
+  userRef.current = user;
 
   const checkAuth = async () => {
     try {
@@ -42,7 +46,13 @@ export const AuthProvider = ({ children }) => {
         if (mounted) setLoading(false);
       });
 
-    const clearUser = () => setUser(null);
+    const clearUser = () => {
+      if (userRef.current) {
+        setSessionExpired(true);
+        toast.error('Session expired — please sign in again', { id: 'session-expired' });
+      }
+      setUser(null);
+    };
     window.addEventListener('auth:unauthorized', clearUser);
     return () => {
       mounted = false;
@@ -61,6 +71,7 @@ export const AuthProvider = ({ children }) => {
     });
     
     if (res.ok) {
+      setSessionExpired(false);
       await checkAuth();
       return { success: true };
     } else {
@@ -71,11 +82,12 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     await apiFetch(`${API_BASE_URL}/api/auth/logout`, { method: 'POST' });
+    setSessionExpired(false);
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, logout, loading, sessionExpired }}>
       {children}
     </AuthContext.Provider>
   );

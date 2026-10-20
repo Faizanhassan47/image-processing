@@ -29,6 +29,13 @@ export async function apiFetch(url, options = {}, hasRetriedCsrf = false) {
       if (refreshResponse.ok) return apiFetch(url, options, true);
     }
   }
-  if (response.status === 401) window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+  if (response.status === 401) {
+    const isLoginEndpoint = url.includes('/api/auth/login');
+    if (!isLoginEndpoint) {
+      window.dispatchEvent(new CustomEvent('auth:unauthorized', {
+        detail: { url, status: response.status },
+      }));
+    }
+  }
   return response;
 }
