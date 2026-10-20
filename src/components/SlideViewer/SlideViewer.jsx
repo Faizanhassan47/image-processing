@@ -13,6 +13,52 @@ export default function SlideViewer({ slide, zoom, setZoom, position, setPositio
     if (imageRef.current) imageRef.current.style.width = `${zoom * 100}%`;
   }, [position.x, position.y, zoom]);
 
+  useEffect(() => {
+    if (slide.file_type === 'wsi') return;
+    const keydown = (event) => {
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLSelectElement) return;
+      const panStep = 40;
+      switch (event.key.toLowerCase()) {
+        case '+':
+        case '=':
+          event.preventDefault();
+          setZoom((v) => Math.min(10, v * 1.25));
+          break;
+        case '-':
+        case '_':
+          event.preventDefault();
+          setZoom((v) => Math.max(0.2, v / 1.25));
+          break;
+        case '0':
+        case 'f':
+          event.preventDefault();
+          setZoom(0.5);
+          setPosition({ x: 0, y: 0 });
+          break;
+        case 'arrowup':
+          event.preventDefault();
+          setPosition((p) => ({ ...p, y: p.y + panStep }));
+          break;
+        case 'arrowdown':
+          event.preventDefault();
+          setPosition((p) => ({ ...p, y: p.y - panStep }));
+          break;
+        case 'arrowleft':
+          event.preventDefault();
+          setPosition((p) => ({ ...p, x: p.x + panStep }));
+          break;
+        case 'arrowright':
+          event.preventDefault();
+          setPosition((p) => ({ ...p, x: p.x - panStep }));
+          break;
+        default:
+          break;
+      }
+    };
+    window.addEventListener('keydown', keydown);
+    return () => window.removeEventListener('keydown', keydown);
+  }, [slide.file_type, setPosition, setZoom]);
+
   if (slide.file_type === 'wsi') return <WsiViewer slide={slide} onError={onError} syncViews={syncViews} syncedViewerRef={syncedViewerRef} externalViewerRef={viewerRef} />;
 
   const down = (event) => {

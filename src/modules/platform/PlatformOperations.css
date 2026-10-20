@@ -123,6 +123,50 @@
   font-weight: 600;
 }
 
+/* Telemetry & Progress Bars */
+.ops-telemetry-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  padding: var(--spacing-sm) 0;
+}
+
+.ops-telemetry-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.ops-telemetry-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.84rem;
+}
+
+.ops-telemetry-meta span {
+  color: var(--color-text-muted);
+}
+
+.ops-telemetry-meta strong {
+  font-family: var(--font-mono, monospace);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.ops-progress-bar {
+  height: 8px;
+  background: var(--color-surface-elevated);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+}
+
+.ops-progress-fill {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
 @media (max-width: 900px) { .ops-metrics { grid-template-columns: repeat(2, 1fr); } .ops-grid { grid-template-columns: 1fr; } .ops-card--wide { grid-column: auto; } .tat-card-grid { grid-template-columns: 1fr; } }
 @media (max-width: 560px) { .ops-page { padding: var(--spacing-md); } .ops-heading { flex-direction: column; } .ops-heading-actions { width: 100%; justify-content: flex-start; } .ops-metrics { grid-template-columns: 1fr; } }
 

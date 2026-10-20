@@ -8,7 +8,7 @@ import Empty from '../../components/EmptyState/EmptyState';
 import Field from '../../components/Field/Field';
 import ReportEditor from '../../components/ReportEditor/ReportEditor';
 import SlideViewer from '../../components/SlideViewer/SlideViewer';
-import { isAdministratorRole, SYSTEM_ADMIN_ROLE, SUPER_ADMIN_ROLE } from '../../config/roles';
+import { isAdministratorRole, isAuditorRole, SYSTEM_ADMIN_ROLE, SUPER_ADMIN_ROLE } from '../../config/roles';
 import './PathologyWorkspace.css';
 import Login from '../auth/Login';
 import { useAuth } from '../auth/AuthProvider';
@@ -495,7 +495,7 @@ export default function App() {
         </div>
       </header>
 
-      <>
+      {!isAuditorRole(user?.role) && (
       <section className={`card form-card ${showCreateCase ? 'form-card--open' : ''}`}>
         <button type="button" className="form-card-toggle" onClick={() => setShowCreateCase((value) => !value)} aria-expanded={showCreateCase}>
           <span><Plus size={17} /><span><strong>Create case</strong><small>Add case details and an optional first slide.</small></span></span><ChevronDown size={18} />
@@ -512,12 +512,13 @@ export default function App() {
           </div>
         </form></>}
       </section>
+      )}
 
       <section className="columns case-workspace">
         <aside className="sidebar-card">
           <div className="sidebar-title-row"><h2>Cases</h2><span className="case-count-pill">{cases.length}</span></div>
           <div className="worklist-tabs" role="tablist" aria-label="Case worklists">
-            {['My Cases', 'Unassigned', 'Awaiting Review', 'Completed'].map((tab) => (
+            {['All', 'My Cases', 'Unassigned', 'Awaiting Review', 'Completed'].map((tab) => (
               <button key={tab} type="button" role="tab" aria-selected={worklistTab === tab} className={worklistTab === tab ? 'worklist-tab worklist-tab--active' : 'worklist-tab'} onClick={() => setWorklistTab(tab)}>{tab}</button>
             ))}
           </div>
@@ -553,7 +554,9 @@ export default function App() {
                 <span className="specimen-tag">{selectedCase.slide_count} slides</span></div>
               <div className="viewer-header-actions">
                 {isAdministratorRole(user?.role) && <button type="button" className="btn-control-secondary btn-case-remove" onClick={() => setDeleteCaseTarget(selectedCase)}><Trash2 size={15} /> Remove case</button>}
-                <button type="button" className="btn-control-secondary" onClick={() => setShowSlideForm((value) => !value)}><Upload size={15} /> Add slide</button>
+                {!isAuditorRole(user?.role) && (
+                  <button type="button" className="btn-control-secondary" onClick={() => setShowSlideForm((value) => !value)}><Upload size={15} /> Add slide</button>
+                )}
               </div>
             </div>
 
@@ -567,34 +570,40 @@ export default function App() {
             {inspectorTab === 'review' && <section className="review-panel" key={`review-${selectedCase.id}`}>
               <div className="review-panel-title"><ClipboardCheck size={17} /><div><h3>Case review</h3>
                 <span>Names are recorded as entered and do not provide authentication.</span></div></div>
-              <div className="review-controls">
-                <form onSubmit={(event) => updateReview(event, 'reviewer', 'Reviewer updated.')}>
-                  <Field label="Assigned reviewer"><input name="reviewer" maxLength={120} defaultValue={selectedCase.reviewer} placeholder="Reviewer name" /></Field>
-                  
-                  <button className="btn-control-secondary" disabled={busy}>Assign</button>
-                </form>
-                <form onSubmit={(event) => updateReview(event, 'status', 'Case status updated.')}>
-                  <Field label="Status">
-                    <select
-                      name="status"
-                      key={`status-${selectedCase.id}-${selectedCase.status}`}
-                      defaultValue={selectedCase.status || 'New'}
-                    >
-                      {CASE_STATUS_OPTIONS.map((status) => (
-                        <option key={status} value={status}>
-                          {status}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                  <button className="btn-control-secondary" disabled={busy}>Change status</button>
-                </form>
-                <form className="review-note-form" onSubmit={addReviewNote}>
-                  
-                  <Field label="Review note *"><textarea name="note" required maxLength={4000} rows={2} placeholder="Add a case-level review note" /></Field>
-                  <button className="btn-control-secondary" disabled={busy}>Add note</button>
-                </form>
-              </div>
+              {isAuditorRole(user?.role) ? (
+                <div className="review-empty" style={{ margin: 'var(--spacing-sm) 0' }}>
+                  <span>Auditor mode: Read-only access to case records and history.</span>
+                </div>
+              ) : (
+                <div className="review-controls">
+                  <form onSubmit={(event) => updateReview(event, 'reviewer', 'Reviewer updated.')}>
+                    <Field label="Assigned reviewer"><input name="reviewer" maxLength={120} defaultValue={selectedCase.reviewer} placeholder="Reviewer name" /></Field>
+                    
+                    <button className="btn-control-secondary" disabled={busy}>Assign</button>
+                  </form>
+                  <form onSubmit={(event) => updateReview(event, 'status', 'Case status updated.')}>
+                    <Field label="Status">
+                      <select
+                        name="status"
+                        key={`status-${selectedCase.id}-${selectedCase.status}`}
+                        defaultValue={selectedCase.status || 'New'}
+                      >
+                        {CASE_STATUS_OPTIONS.map((status) => (
+                          <option key={status} value={status}>
+                            {status}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                    <button className="btn-control-secondary" disabled={busy}>Change status</button>
+                  </form>
+                  <form className="review-note-form" onSubmit={addReviewNote}>
+                    
+                    <Field label="Review note *"><textarea name="note" required maxLength={4000} rows={2} placeholder="Add a case-level review note" /></Field>
+                    <button className="btn-control-secondary" disabled={busy}>Add note</button>
+                  </form>
+                </div>
+              )}
               <div className="review-records">
                 <details open><summary>Notes ({(selectedCase.review_notes || []).length})</summary>
                   {!(selectedCase.review_notes || []).length ? <p className="review-empty">No review notes yet.</p> :
@@ -762,7 +771,6 @@ export default function App() {
       >
         <p className="confirmation-copy">Permanently remove case <strong>{deleteCaseTarget?.case_id}</strong>, including all slides, annotations, QC history, reports, drafts, and viewer settings? This also removes finalized reports. Source image files will be quarantined and the action will remain in the audit log.</p>
       </Modal>
-    </>
     </main>
   );
 }
