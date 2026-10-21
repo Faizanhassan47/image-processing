@@ -18,6 +18,7 @@ import {
   Loader2, Play, RefreshCw, StopCircle, X, Zap
 } from 'lucide-react';
 import { viewerService } from '../../services/viewerService';
+import { aiSubscriptionService } from '../../services/aiSubscriptionService';
 import './AiAnalysisPanel.css';
 
 function formatDuration(sec) {
@@ -195,6 +196,7 @@ export default function AiAnalysisPanel({
   onPanToRoi,
 }) {
   const [open, setOpen] = useState(true);
+  const [entitlements, setEntitlements] = useState(null);
   const [running, setRunning] = useState(false);
   const [activeJob, setActiveJob] = useState(null);
   const [cancelling, setCancelling] = useState(false);
@@ -229,6 +231,14 @@ export default function AiAnalysisPanel({
       if (abortRef.current) abortRef.current.abort();
     };
   }, [stopPolling]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    aiSubscriptionService.entitlements(controller.signal)
+      .then(setEntitlements)
+      .catch((error) => { if (error.name !== 'AbortError') setEntitlements({ effective_feature_codes: [] }); });
+    return () => controller.abort();
+  }, []);
 
   // ── Load analysis history on mount / slide change ───────────────────────
   const loadHistory = useCallback(async () => {
@@ -312,7 +322,7 @@ export default function AiAnalysisPanel({
 
   // ── Run AI analysis ───────────────────────────────────────────────────────
   const runAnalysis = useCallback(async (autoTissue = false) => {
-    if (running) return;
+    if (running || !entitlements?.effective_feature_codes?.includes('HOVERNET')) return;
     setRunning(true);
     setActiveJob(null);
     setSelectedNucleus(null);
@@ -369,7 +379,7 @@ export default function AiAnalysisPanel({
     } finally {
       abortRef.current = null;
     }
-  }, [running, roiRect, slide.id, onAnalysisReady, onError, onPanToRoi, startPollingJob]);
+  }, [running, entitlements, roiRect, slide.id, onAnalysisReady, onError, onPanToRoi, startPollingJob]);
 
   // ── PDF actions ───────────────────────────────────────────────────────────
   const handleDownloadPdf = useCallback(async () => {
@@ -449,6 +459,9 @@ export default function AiAnalysisPanel({
   const totalNuclei = detail?.total_nuclei ?? detail?.analysis?.total_nuclei ?? detail?.counts?.total ?? 0;
   const hasResults = Boolean(detail && (totalNuclei > 0 || detail.status?.toLowerCase() === 'completed'));
   const elapsedSec = detail?.elapsed_seconds ?? detail?.inference_duration ?? null;
+  const canRunHoverNet = entitlements?.effective_feature_codes?.includes('HOVERNET');
+
+  if (!canRunHoverNet) return null;
 
   return (
     <section className="ai-panel" aria-label="HoVer-Net AI analysis">
@@ -465,7 +478,7 @@ export default function AiAnalysisPanel({
         <div className="ai-panel-header-left">
           <Activity size={15} aria-hidden="true" />
           <div>
-            <p className="ai-panel-title">AI Nucleus Analysis</p>
+            <p className="ai-panel-title">AI Analysis</p>
             {hasResults && (
               <p className="ai-panel-subtitle">{totalNuclei} nuclei · HoVer-Net Fast</p>
             )}

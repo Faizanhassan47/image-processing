@@ -870,6 +870,21 @@ textarea {
   white-space: nowrap;
 }
 
+.reviewer-field-message {
+  display: block;
+  margin-top: var(--spacing-xs);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.reviewer-field-message--error {
+  color: var(--color-danger-text);
+}
+
+.review-empty--auditor {
+  margin: var(--spacing-sm) 0;
+}
+
 .review-records {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2189,4 +2204,35 @@ body {
 
 .link-item-author {
   color: var(--color-text-muted);
-}
+}
+
+.case-workspace .worklist-tabs {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  min-height: 42px;
+  margin-bottom: var(--spacing-sm);
+  padding: var(--spacing-xs);
+  overflow-x: auto;
+  overflow-y: hidden;
+  background: var(--color-surface-subtle);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.case-workspace .worklist-tab {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 0 var(--spacing-sm);
+  color: var(--color-text-muted);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.case-workspace .worklist-tab--active {
+  color: var(--color-text-inverse);
+  background: var(--color-primary);
+}

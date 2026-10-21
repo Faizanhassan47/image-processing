@@ -20,6 +20,7 @@ import Modal from '../../components/Modal/Modal';
 import PatientPicker from '../../components/PatientPicker/PatientPicker';
 import { patientService } from '../../services/patientService';
 import { platformService } from '../../services/platformService';
+import { caseService } from '../../services/caseService';
 
 function normalizeCase(item) {
   return {
@@ -53,6 +54,9 @@ export default function App() {
   const [worklistTab, setWorklistTab] = useState('My Cases');
   const [statusFilter, setStatusFilter] = useState('All');
   const [reviewerFilter, setReviewerFilter] = useState('All');
+  const [availableReviewers, setAvailableReviewers] = useState([]);
+  const [reviewersLoading, setReviewersLoading] = useState(false);
+  const [reviewersError, setReviewersError] = useState('');
   
   const [busy, setBusy] = useState(false);
   const [isBackendHealthy, setIsBackendHealthy] = useState(null);
@@ -128,6 +132,22 @@ export default function App() {
         .catch(() => {});
     });
   }, [refresh, user]);
+
+  useEffect(() => {
+    if (!user || isAuditorRole(user.role)) return undefined;
+    const controller = new AbortController();
+    setReviewersLoading(true);
+    setReviewersError('');
+    caseService.reviewers(controller.signal)
+      .then((data) => setAvailableReviewers(Array.isArray(data) ? data : []))
+      .catch((error) => {
+        if (error.name !== 'AbortError') setReviewersError(error.message);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setReviewersLoading(false);
+      });
+    return () => controller.abort();
+  }, [user]);
 
   useEffect(() => {
     if (!selectedCaseId) {
@@ -462,6 +482,14 @@ export default function App() {
     <button className="btn-primary" disabled={busy}><Upload size={16} /> {busy ? 'Uploading…' : 'Upload Slide'}</button>
   </form> : null;
   const canRemoveSlides = ['Laboratory Manager', SYSTEM_ADMIN_ROLE, SUPER_ADMIN_ROLE].includes(user?.role);
+  const selectWorklist = (tab) => {
+    setWorklistTab(tab);
+    if (tab === 'All') {
+      setSearchQuery('');
+      setStatusFilter('All');
+      setReviewerFilter('All');
+    }
+  };
 
   if (!user) return <Login />;
   return (
@@ -473,7 +501,8 @@ export default function App() {
             <p className="subtitle">Review cases and compare slides.</p></div>
         </div>
         <div className="header-actions">
-          <Link to="/patients" className="btn-control-secondary admin-route-link">Patients</Link>
+          {user?.role !== 'Pathologist' && <Link to="/patients" className="btn-control-secondary admin-route-link">Patients</Link>}
+          <Link to="/ai-features" className="btn-control-secondary admin-route-link">AI Features</Link>
           {['Laboratory Manager', SYSTEM_ADMIN_ROLE, SUPER_ADMIN_ROLE].includes(user?.role) && (
             <Link to="/platform" className="btn-control-secondary admin-route-link">
               Operations & Ingestion
@@ -519,7 +548,7 @@ export default function App() {
           <div className="sidebar-title-row"><h2>Cases</h2><span className="case-count-pill">{cases.length}</span></div>
           <div className="worklist-tabs" role="tablist" aria-label="Case worklists">
             {['All', 'My Cases', 'Unassigned', 'Awaiting Review', 'Completed'].map((tab) => (
-              <button key={tab} type="button" role="tab" aria-selected={worklistTab === tab} className={worklistTab === tab ? 'worklist-tab worklist-tab--active' : 'worklist-tab'} onClick={() => setWorklistTab(tab)}>{tab}</button>
+              <button key={tab} type="button" role="tab" aria-selected={worklistTab === tab} className={worklistTab === tab ? 'worklist-tab worklist-tab--active' : 'worklist-tab'} onClick={() => selectWorklist(tab)}>{tab}</button>
             ))}
           </div>
           <div className="search-bar"><Search size={16} className="search-icon" />
@@ -569,17 +598,38 @@ export default function App() {
               </div>
             {inspectorTab === 'review' && <section className="review-panel" key={`review-${selectedCase.id}`}>
               <div className="review-panel-title"><ClipboardCheck size={17} /><div><h3>Case review</h3>
-                <span>Names are recorded as entered and do not provide authentication.</span></div></div>
+                <span>Assign an active pathologist to review this case.</span></div></div>
               {isAuditorRole(user?.role) ? (
-                <div className="review-empty" style={{ margin: 'var(--spacing-sm) 0' }}>
+                <div className="review-empty review-empty--auditor">
                   <span>Auditor mode: Read-only access to case records and history.</span>
                 </div>
               ) : (
                 <div className="review-controls">
                   <form onSubmit={(event) => updateReview(event, 'reviewer', 'Reviewer updated.')}>
-                    <Field label="Assigned reviewer"><input name="reviewer" maxLength={120} defaultValue={selectedCase.reviewer} placeholder="Reviewer name" /></Field>
+                    <Field label="Assigned reviewer">
+                      <select
+                        name="reviewer"
+                        key={`reviewer-${selectedCase.id}-${selectedCase.reviewer}`}
+                        defaultValue={selectedCase.reviewer || ''}
+                        disabled={reviewersLoading || Boolean(reviewersError)}
+                        aria-describedby={reviewersError ? 'reviewer-load-error' : undefined}
+                      >
+                        <option value="">Unassigned</option>
+                        {selectedCase.reviewer && !availableReviewers.some((reviewer) => reviewer.username === selectedCase.reviewer) && (
+                          <option value={selectedCase.reviewer}>{selectedCase.reviewer} (currently assigned)</option>
+                        )}
+                        {availableReviewers.map((reviewer) => (
+                          <option key={reviewer.id} value={reviewer.username}>
+                            {reviewer.display_name || reviewer.username}{reviewer.display_name && reviewer.display_name !== reviewer.username ? ` (${reviewer.username})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                      {reviewersLoading && <small className="reviewer-field-message">Loading pathologists…</small>}
+                      {reviewersError && <small id="reviewer-load-error" className="reviewer-field-message reviewer-field-message--error">Pathologists could not be loaded.</small>}
+                      {!reviewersLoading && !reviewersError && !availableReviewers.length && <small className="reviewer-field-message">No active pathologists are available.</small>}
+                    </Field>
                     
-                    <button className="btn-control-secondary" disabled={busy}>Assign</button>
+                    <button className="btn-control-secondary" disabled={busy || reviewersLoading || Boolean(reviewersError) || !availableReviewers.length}>Assign</button>
                   </form>
                   <form onSubmit={(event) => updateReview(event, 'status', 'Case status updated.')}>
                     <Field label="Status">

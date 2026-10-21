@@ -1,0 +1,36 @@
+.ai-listing-manager { display: grid; gap: var(--spacing-lg); color: var(--color-text); }
+.ai-listing-manager__heading, .ai-listing-form > header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--spacing-lg); }
+.ai-listing-manager__heading h2, .ai-listing-form h3 { margin: var(--spacing-xs) 0; font-size: var(--font-size-heading-md); }
+.ai-listing-manager__heading p:last-child { margin: 0; color: var(--color-text-muted); }
+.ai-listing-manager__heading .btn-primary, .ai-listing-form button { display: inline-flex; align-items: center; gap: var(--spacing-xs); }
+.ai-listing-manager__cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--spacing-md); }
+.ai-listing-manager__cards > article, .ai-listing-manager__empty, .ai-listing-form { padding: var(--spacing-lg); background: var(--color-surface); border: var(--border-width) solid var(--color-border); border-radius: var(--radius-lg); }
+.ai-listing-manager__cards > article { display: flex; justify-content: space-between; gap: var(--spacing-md); min-width: 0; }
+.ai-listing-manager__cards > article > div:first-child { min-width: 0; }
+.ai-listing-manager__cards span { color: var(--color-text-muted); font-size: var(--font-size-xs); text-transform: uppercase; }
+.ai-listing-manager__cards h3 { margin: var(--spacing-xs) 0; overflow-wrap: anywhere; }
+.ai-listing-manager__cards p { margin: 0; color: var(--color-text-muted); line-height: 1.5; overflow-wrap: anywhere; }
+.ai-listing-manager__cards .ai-listing-manager__price { margin-top: var(--spacing-sm); color: var(--color-primary); font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); }
+.ai-listing-manager__cards ul { display: flex; flex-wrap: wrap; gap: var(--spacing-xs); margin: var(--spacing-md) 0 0; padding: 0; list-style: none; }
+.ai-listing-manager__cards li { padding: 4px var(--spacing-sm); color: var(--color-text-muted); background: var(--color-surface-subtle); border-radius: var(--radius-sm); font-size: var(--font-size-xs); }
+.ai-listing-manager__card-actions { display: flex; flex: 0 0 auto; flex-direction: column; align-items: stretch; gap: var(--spacing-xs); }
+.ai-listing-manager__empty { grid-column: 1 / -1; text-align: center; }
+.ai-listing-manager__empty h3, .ai-listing-manager__empty p { margin: 0; }
+.ai-listing-manager__empty p { margin-top: var(--spacing-xs); color: var(--color-text-muted); }
+.ai-listing-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--spacing-md); }
+.ai-listing-form > header, .ai-listing-form__wide, .ai-listing-form__actions { grid-column: 1 / -1; }
+.ai-listing-form label, .ai-listing-form fieldset { display: grid; gap: var(--spacing-xs); min-width: 0; padding: 0; color: var(--color-text); border: 0; font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); }
+.ai-listing-form legend { margin-bottom: var(--spacing-xs); }
+.ai-listing-form label small { color: var(--color-text-muted); font-weight: normal; }
+.ai-listing-form input, .ai-listing-form select, .ai-listing-form textarea { width: 100%; padding: var(--spacing-sm) var(--spacing-md); color: var(--color-text); background: var(--color-background); border: var(--border-width) solid var(--color-border); border-radius: var(--radius-md); font: inherit; resize: vertical; }
+.ai-listing-form .ai-listing-form__calculated-price { color: var(--color-primary); background: var(--color-surface-subtle); font-weight: var(--font-weight-semibold); cursor: default; }
+.ai-listing-form select { color-scheme: dark; }
+.ai-listing-form select option { color: var(--color-text); background: var(--color-surface); }
+.ai-listing-form input:focus, .ai-listing-form select:focus, .ai-listing-form textarea:focus { border-color: var(--color-primary); outline: 0; box-shadow: var(--focus-ring); }
+.ai-listing-form__capability { display: flex; gap: var(--spacing-sm); }
+.ai-listing-form__capability input { min-width: 0; }
+.ai-listing-form__capability .btn-control-secondary { flex: 0 0 auto; }
+.ai-listing-form__toggle { display: flex !important; align-items: center; grid-auto-flow: column; justify-content: start; }
+.ai-listing-form__toggle input { width: auto; }
+@media (max-width: 800px) { .ai-listing-manager__cards { grid-template-columns: 1fr; } }
+@media (max-width: 640px) { .ai-listing-manager__heading, .ai-listing-form > header, .ai-listing-manager__cards > article { flex-direction: column; } .ai-listing-manager__heading .btn-primary, .ai-listing-manager__card-actions button { width: 100%; justify-content: center; } .ai-listing-form { grid-template-columns: 1fr; } .ai-listing-form > * { grid-column: auto; } }

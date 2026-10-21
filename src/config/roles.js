@@ -1,8 +1,8 @@
 export const USER_ROLES = [
+  { value: 'Super Administrator', label: 'Super Administrator' },
   { value: 'System Administrator', label: 'System Administrator' },
   { value: 'Laboratory Manager', label: 'Laboratory Manager / Supervisor' },
   { value: 'Pathologist', label: 'Pathologist' },
-  { value: 'Auditor', label: 'Auditor / Read-Only User' },
 ];
 
 export const SYSTEM_ADMIN_ROLE = 'System Administrator';
