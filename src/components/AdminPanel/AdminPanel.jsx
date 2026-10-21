@@ -1,14 +1,19 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import toast from 'react-hot-toast';
-import { UserPlus, Users, KeyRound, ShieldAlert, Search } from 'lucide-react';
+import { UserPlus, Users, KeyRound, Power, PowerOff, ShieldAlert, Sparkles, Search } from 'lucide-react';
 import './AdminPanel.css';
 import { useAuth } from '../../modules/auth/AuthProvider';
 import Modal from '../Modal/Modal';
 import { apiFetch } from '../../api';
-import { isAdministratorRole, isProtectedSuperAdmin, SYSTEM_ADMIN_ROLE, USER_ROLES } from '../../config/roles';
+import { isAdministratorRole, isProtectedSuperAdmin, SUPER_ADMIN_ROLE, SYSTEM_ADMIN_ROLE, USER_ROLES } from '../../config/roles';
+import AISubscriptions from './AISubscriptions';
 
 export default function AdminPanel({ API }) {
   const { user } = useAuth();
+  const isSuperAdmin = user?.role === SUPER_ADMIN_ROLE || isProtectedSuperAdmin(user?.username);
+  const manageableRoles = isSuperAdmin
+    ? USER_ROLES
+    : USER_ROLES.filter((item) => item.value === 'Laboratory Manager' || item.value === 'Pathologist');
   const [users, setUsers] = useState([]);
 
   // New User Form State
@@ -20,10 +25,12 @@ export default function AdminPanel({ API }) {
   const [newPassword, setNewPassword] = useState('');
   const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
+  const [aiAccessUserId, setAiAccessUserId] = useState(null);
   const passwordInputRef = useRef(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('All');
-  const visibleUsers = users.filter((item) => (roleFilter === 'All' || item.role === roleFilter)
+  const visibleUsers = users.filter((item) => (isSuperAdmin || (item.role !== SUPER_ADMIN_ROLE && !isProtectedSuperAdmin(item.username)))
+    && (roleFilter === 'All' || item.role === roleFilter)
     && `${item.username} ${item.display_name}`.toLowerCase().includes(searchQuery.toLowerCase()));
 
   const fetchUsers = useCallback(async () => {
@@ -125,6 +132,19 @@ export default function AdminPanel({ API }) {
     }
   };
 
+  const handleUpdateStatus = async (selectedUser, isActive) => {
+    try {
+      const response = await apiFetch(`${API}/api/users/${selectedUser.id}/status`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ is_active: isActive }) });
+      if (response.ok) { toast.success(`${selectedUser.username} is now ${isActive ? 'active' : 'inactive'}`); setPendingAction(null); fetchUsers(); }
+      else { const data = await response.json(); toast.error(data.detail || 'Failed to update account status'); }
+    } catch { toast.error('Error connecting to server'); }
+  };
+
+  const openAiAccess = (userId) => {
+    setAiAccessUserId(userId);
+    requestAnimationFrame(() => document.getElementById('ai-subscriptions')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  };
+
   const openPasswordReset = (selectedUser) => {
     setPasswordResetUser(selectedUser);
     setNewPassword('');
@@ -194,7 +214,7 @@ export default function AdminPanel({ API }) {
             <div className="form-group">
               <label htmlFor="new-role">Role</label>
               <select id="new-role" value={role} onChange={e => setRole(e.target.value)}>
-                {USER_ROLES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                {manageableRoles.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
               </select>
             </div>
             <div className="form-group">
@@ -234,12 +254,12 @@ export default function AdminPanel({ API }) {
                     <td>{u.username}</td>
                     <td>{u.display_name}</td>
                     <td>
-                      {isProtectedSuperAdmin(u.username) ? <span className="role-badge">System Administrator (protected)</span> : <select
+                      {(u.username === user?.username || (!isSuperAdmin && [SUPER_ADMIN_ROLE, SYSTEM_ADMIN_ROLE].includes(u.role))) ? <span className="role-badge">{u.role}</span> : <select
                         value={u.role}
                         onChange={(e) => setPendingAction({ type: 'role', user: u, role: e.target.value })}
                         className="role-badge role-select"
                       >
-                        {USER_ROLES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                        {manageableRoles.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
                       </select>}
                     </td>
                     <td><span className={u.is_active ? 'account-status account-status--active' : 'account-status'}>{u.is_active ? 'Active' : 'Inactive'}</span></td>
@@ -248,7 +268,9 @@ export default function AdminPanel({ API }) {
                       <button type="button" className="btn-secondary" title="Reset Password" onClick={() => openPasswordReset(u)}>
                         <KeyRound size={14} /> Reset
                       </button>
-                      {!isProtectedSuperAdmin(u.username) && <button type="button" className="btn-delete" title="Delete User" disabled={u.username === user?.username} onClick={() => setPendingAction({ type: 'delete', user: u })}>
+                      {u.username !== user?.username && <button type="button" className="btn-secondary" title={u.is_active ? 'Deactivate user' : 'Activate user'} onClick={() => setPendingAction({ type: 'status', user: u, isActive: !u.is_active })}>{u.is_active ? <PowerOff size={14} /> : <Power size={14} />}{u.is_active ? 'Deactivate' : 'Activate'}</button>}
+                      {(['Pathologist', 'Laboratory Manager'].includes(u.role) || (isSuperAdmin && u.role === SYSTEM_ADMIN_ROLE)) && <button type="button" className="btn-secondary" title="Manage AI access" onClick={() => openAiAccess(u.id)}><Sparkles size={14} /> AI access</button>}
+                      {(isSuperAdmin || ![SUPER_ADMIN_ROLE, SYSTEM_ADMIN_ROLE].includes(u.role)) && <button type="button" className="btn-delete" title="Delete User" disabled={u.username === user?.username} onClick={() => setPendingAction({ type: 'delete', user: u })}>
                         <ShieldAlert size={14} /> Delete
                       </button>}
                     </td>
@@ -264,6 +286,7 @@ export default function AdminPanel({ API }) {
           </div>
         </div>
       </div>
+      {isAdministratorRole(user?.role) && <AISubscriptions selectedUserId={aiAccessUserId} onUserOpened={() => setAiAccessUserId(null)} />}
       <Modal
         open={Boolean(passwordResetUser)}
         title="Reset password"
@@ -278,12 +301,14 @@ export default function AdminPanel({ API }) {
           </>
         )}
       >
-        <form id="reset-password-form" className="reset-password-form" onSubmit={handleResetPassword}>
+        <form id="reset-password-form" className="reset-password-form" autoComplete="off" onSubmit={handleResetPassword}>
           <p>Enter a new password for <strong>{passwordResetUser?.username}</strong>.</p>
+          <input className="reset-password-form__account" type="text" name="username" autoComplete="username" value={passwordResetUser?.username || ''} readOnly tabIndex={-1} aria-hidden="true" />
           <label htmlFor="reset-password">New password</label>
           <input
             ref={passwordInputRef}
             id="reset-password"
+            name="new-password"
             type="password"
             autoComplete="new-password"
             minLength={4}
@@ -296,27 +321,23 @@ export default function AdminPanel({ API }) {
       </Modal>
       <Modal
         open={Boolean(pendingAction)}
-        title={pendingAction?.type === 'delete' ? 'Delete user' : 'Change user role'}
+        title={pendingAction?.type === 'delete' ? 'Delete user' : pendingAction?.type === 'status' ? `${pendingAction?.isActive ? 'Activate' : 'Deactivate'} user` : 'Change user role'}
         onClose={() => setPendingAction(null)}
         footer={(
           <>
             <button type="button" className="modal-button modal-button--secondary" onClick={() => setPendingAction(null)}>Cancel</button>
             <button
               type="button"
-              className={pendingAction?.type === 'delete' ? 'modal-button btn-delete' : 'modal-button modal-button--primary'}
-              onClick={() => pendingAction?.type === 'delete'
-                ? handleDeleteUser(pendingAction.user.id)
-                : handleUpdateRole(pendingAction.user.id, pendingAction.role)}
+              className={pendingAction?.type === 'delete' || pendingAction?.type === 'status' && !pendingAction?.isActive ? 'modal-button btn-delete' : 'modal-button modal-button--primary'}
+              onClick={() => pendingAction?.type === 'delete' ? handleDeleteUser(pendingAction.user.id) : pendingAction?.type === 'status' ? handleUpdateStatus(pendingAction.user, pendingAction.isActive) : handleUpdateRole(pendingAction.user.id, pendingAction.role)}
             >
-              {pendingAction?.type === 'delete' ? 'Delete user' : 'Change role'}
+              {pendingAction?.type === 'delete' ? 'Delete user' : pendingAction?.type === 'status' ? pendingAction.isActive ? 'Activate user' : 'Deactivate user' : 'Change role'}
             </button>
           </>
         )}
       >
         <p className="confirmation-copy">
-          {pendingAction?.type === 'delete'
-            ? <>Permanently delete <strong>{pendingAction?.user.username}</strong>?</>
-            : <>Change <strong>{pendingAction?.user.username}</strong> from {pendingAction?.user.role} to <strong>{pendingAction?.role}</strong>?</>}
+          {pendingAction?.type === 'delete' ? <>Permanently delete <strong>{pendingAction?.user.username}</strong>?</> : pendingAction?.type === 'status' ? <>{pendingAction.isActive ? 'Activate' : 'Deactivate'} <strong>{pendingAction.user.username}</strong>? {pendingAction.isActive ? 'They will be able to sign in again.' : 'They will not be able to sign in until reactivated.'}</> : <>Change <strong>{pendingAction?.user.username}</strong> from {pendingAction?.user.role} to <strong>{pendingAction?.role}</strong>?</>}
         </p>
       </Modal>
     </div>
