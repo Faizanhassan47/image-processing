@@ -21,7 +21,7 @@ vi.mock('../services/aiSubscriptionService', () => ({
 describe('AI Features catalog', () => {
   it('renders the AI model store with clear model purpose and access state', async () => {
     render(<MemoryRouter><AIFeatures /></MemoryRouter>);
-    expect(await screen.findByRole('heading', { name: 'AI Model Store' })).toBeInTheDocument();
+    expect(await screen.findByRole('region', { name: 'AI model catalog' })).toBeInTheDocument();
     expect(await screen.findByRole('heading', { name: 'HoVer-Net' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Image Quality Control' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Tumor Detection' })).toBeInTheDocument();
@@ -32,7 +32,6 @@ describe('AI Features catalog', () => {
     expect(screen.getAllByText('Clinical value')).toHaveLength(4);
     expect(screen.getByText('USD 10.00')).toBeInTheDocument();
     expect(screen.getByText('PKR 2,800')).toBeInTheDocument();
-    expect(screen.getByText(/support, not replace, professional diagnosis/i)).toBeInTheDocument();
   });
 
   it('lets an entitled user opt out of a feature without changing the license', async () => {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import OpenSeadragon from 'openseadragon';
-import { Bookmark, Edit3, Eye, EyeOff, Expand, Layers, Maximize2, Minimize2, Minus, Plus, RefreshCw, RotateCcw, RotateCw, Trash2, PenTool, Download } from 'lucide-react';
+import { Bookmark, Edit3, Eye, EyeOff, Expand, Maximize2, Minimize2, Minus, Plus, RefreshCw, RotateCcw, RotateCw, Trash2, PenTool, Download } from 'lucide-react';
 import '../SlideViewer/SlideViewer.css';
 import './WsiViewer.css';
 import { API_BASE_URL as API } from '../../config';
@@ -29,6 +29,21 @@ const DISPLAY_PROFILES = {
   'hue-positive': ['Hue shift +90°', 'Rotates displayed hue for visual separation experiments.'],
   'hue-negative': ['Hue shift −90°', 'Rotates displayed hue in the opposite direction.'],
 };
+
+function annotationToRoi(annotation, fallbackLabel) {
+  if (!annotation) return null;
+  const type = annotation.annotation_type || annotation.type;
+  if (['rectangle', 'ellipse'].includes(type) && annotation.width > 0 && annotation.height > 0) {
+    return { x: annotation.x, y: annotation.y, width: annotation.width, height: annotation.height, label: annotation.label || fallbackLabel };
+  }
+  if (!['freehand', 'polygon'].includes(type) || !Array.isArray(annotation.points) || annotation.points.length < 2) return null;
+  const points = annotation.points.map((point) => Array.isArray(point) ? { x: point[0], y: point[1] } : point).filter((point) => Number.isFinite(point?.x) && Number.isFinite(point?.y));
+  if (points.length < 2) return null;
+  const xs = points.map((point) => point.x);
+  const ys = points.map((point) => point.y);
+  const x = Math.min(...xs); const y = Math.min(...ys); const width = Math.max(...xs) - x; const height = Math.max(...ys) - y;
+  return width > 0 && height > 0 ? { x, y, width, height, label: annotation.label || fallbackLabel } : null;
+}
 
 function normalizeDraftForMeasurement(geometry) {
   if (!geometry) return null;
@@ -104,8 +119,6 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
   const [draftGeometry, setDraftGeometry] = useState(null);
   const [hoveredAnnotation, setHoveredAnnotation] = useState(null);
   const [calibrationSaving, setCalibrationSaving] = useState(false);
-  const [annotationCategory, setAnnotationCategory] = useState('All');
-  const [annotationStatus, setAnnotationStatus] = useState('All');
   const [scaleBar, setScaleBar] = useState(null);
   const [resizeState, setResizeState] = useState(null);
 
@@ -118,24 +131,11 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
   const [aiSelectedNucleus, setAiSelectedNucleus] = useState(null);
   /** Screen-space tooltip position for nucleus hover. */
   const [nucleusTooltip, setNucleusTooltip] = useState(null);
-  /** ROI extracted from the most recently drawn/selected rectangle annotation. */
+  /** AI operates on the bounding rectangle of the selected annotation shape. */
   const roiRect = (() => {
-    if (draft?.annotation_type === 'rectangle' && draft.width > 0) {
-      return { x: draft.x, y: draft.y, width: draft.width, height: draft.height, label: draft.label || 'Draft ROI' };
-    }
-    if (editing?.annotation_type === 'rectangle' && editing.width > 0) {
-      return { x: editing.x, y: editing.y, width: editing.width, height: editing.height, label: editing.label || 'Editing ROI' };
-    }
-    if (selectedAnnotation?.annotation_type === 'rectangle' && selectedAnnotation.width > 0) {
-      return {
-        x: selectedAnnotation.x,
-        y: selectedAnnotation.y,
-        width: selectedAnnotation.width,
-        height: selectedAnnotation.height,
-        label: selectedAnnotation.label || `Annotation #${selectedAnnotation.id}`,
-      };
-    }
-    return null;
+    return annotationToRoi(draft, 'Draft ROI')
+      || annotationToRoi(editing, 'Editing ROI')
+      || annotationToRoi(selectedAnnotation, `Annotation #${selectedAnnotation?.id}`);
   })();
 
   useEffect(() => {
@@ -935,9 +935,7 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
     measurementSource: 'AI-generated region',
   });
   const canCalibrate = ['Laboratory Manager', SYSTEM_ADMIN_ROLE, SUPER_ADMIN_ROLE].includes(user?.role);
-  const annotationCategories = [...new Set(annotations.map((annotation) => annotation.category).filter(Boolean))].sort();
-  const annotationStatuses = [...new Set(annotations.map((annotation) => annotation.annotation_status).filter(Boolean))].sort();
-  const filteredAnnotations = annotations.filter((annotation) => (annotationCategory === 'All' || annotation.category === annotationCategory) && (annotationStatus === 'All' || annotation.annotation_status === annotationStatus));
+  const filteredAnnotations = annotations;
   const liveMeasurements = getAnnotationMeasurements(normalizeDraftForMeasurement(draftGeometry), calibration);
   const saveCalibration = async (event) => {
     event.preventDefault();
@@ -1201,13 +1199,12 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
             <h3>Annotations</h3>
             <span>{annotations.length} items</span>
           </div>
-          <div style={{ display: 'flex', gap: '4px' }}>
+          <div className="annotation-panel__exports">
             <a
               href={`${API}/api/platform/slides/${slide.id}/annotations/export?format=geojson`}
               className="btn-control-secondary"
               download={`slide_${slide.id}_annotations.geojson`}
               title="Export as GeoJSON"
-              style={{ padding: '3px 7px', fontSize: '0.72rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
             >
               <Download size={12} /> GeoJSON
             </a>
@@ -1216,19 +1213,11 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
               className="btn-control-secondary"
               download={`slide_${slide.id}_annotations.csv`}
               title="Export as CSV"
-              style={{ padding: '3px 7px', fontSize: '0.72rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
             >
               <Download size={12} /> CSV
             </a>
           </div>
         </div>
-        <section className="annotation-layer-controls" aria-label="Annotation layers and filters">
-          <header><Layers size={15} /><strong>Annotation layers</strong></header>
-          <label><span>Human annotations</span><input type="checkbox" checked={visible} onChange={(event) => setVisible(event.target.checked)} /></label>
-          <label><span>Category</span><select value={annotationCategory} onChange={(event) => setAnnotationCategory(event.target.value)}><option>All</option>{annotationCategories.map((category) => <option key={category}>{category}</option>)}</select></label>
-          <label><span>Status</span><select value={annotationStatus} onChange={(event) => setAnnotationStatus(event.target.value)}><option>All</option>{annotationStatuses.map((status) => <option key={status}>{status}</option>)}</select></label>
-          <small>{filteredAnnotations.length} of {annotations.length} human annotations visible</small>
-        </section>
         <section className="viewer-bookmarks" aria-label="Saved regions">
           <div className="annotation-panel-heading"><div><h3>Saved regions</h3><span>{bookmarks.length} items</span></div></div>
           {!bookmarks.length ? <p className="annotation-empty">No saved regions.</p> : bookmarks.map((bookmark) => <div className="viewer-bookmark" key={bookmark.id}><button type="button" onClick={() => openBookmark(bookmark)}>{bookmark.name}</button><button type="button" aria-label={`Delete ${bookmark.name}`} onClick={() => removeBookmark(bookmark)}><Trash2 size={13} /></button></div>)}

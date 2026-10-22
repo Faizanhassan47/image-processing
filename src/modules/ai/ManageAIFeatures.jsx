@@ -17,6 +17,6 @@ export default function ManageAIFeatures() {
   async function remove(feature) { await aiSubscriptionService.updateCatalogCard(feature.id, { is_catalog_visible: false, is_catalog_deleted: true }); await load(); }
 
   if (state.loading) return <section className="manage-ai-state"><span className="loading-spinner" />Loading AI card configuration…</section>;
-  if (state.error) return <section className="manage-ai-state manage-ai-state--error"><h2>AI cards could not be loaded</h2><p>{state.error}</p><button type="button" className="btn-primary" onClick={() => load()}>Try again</button><Link to="/admin" className="btn-control-secondary route-link">Back to administration</Link></section>;
+  if (state.error) return <section className="manage-ai-state manage-ai-state--error"><h2>AI cards could not be loaded</h2><p>{state.error}</p><button type="button" className="btn-primary" onClick={() => load()}>Try again</button></section>;
   return <AIListingManager features={features} onSave={save} onRemove={remove} />;
 }

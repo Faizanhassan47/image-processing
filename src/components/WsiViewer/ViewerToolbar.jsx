@@ -1,9 +1,8 @@
-import { useState } from 'react';
 import {
   ZoomIn, ZoomOut, Maximize2, RotateCcw, RotateCw,
   FlipHorizontal, FlipVertical, Sliders, Map, Footprints,
   Eye, EyeOff, Bookmark, BookmarkCheck, SplitSquareVertical,
-  HelpCircle, Keyboard, Layers, Expand, Minimize2
+  Circle, Keyboard, PenTool, Square, Expand, Minimize2
 } from 'lucide-react';
 import './ViewerToolbar.css';
 
@@ -161,6 +160,14 @@ export default function ViewerToolbar({
           <span className="toolbar-btn-text">Adjust</span>
           {isAdjusted && <span className="toolbar-dot" aria-label="Adjusted" />}
         </button>
+      </div>
+
+      <div className="toolbar-separator" aria-hidden="true" />
+
+      <div className="toolbar-group" role="group" aria-label="Draw analysis region">
+        <button type="button" className={`btn-toolbar ${drawMode === 'rectangle' ? 'btn-toolbar--active' : ''}`} onClick={() => setDrawMode(drawMode === 'rectangle' ? null : 'rectangle')} title="Draw rectangular analysis region" aria-pressed={drawMode === 'rectangle'}><Square size={16} /><span className="toolbar-btn-text">Rectangle</span></button>
+        <button type="button" className={`btn-toolbar ${drawMode === 'ellipse' ? 'btn-toolbar--active' : ''}`} onClick={() => setDrawMode(drawMode === 'ellipse' ? null : 'ellipse')} title="Draw circular or oval analysis region" aria-pressed={drawMode === 'ellipse'}><Circle size={16} /><span className="toolbar-btn-text">Circle</span></button>
+        <button type="button" className={`btn-toolbar ${drawMode === 'freehand' ? 'btn-toolbar--active' : ''}`} onClick={() => setDrawMode(drawMode === 'freehand' ? null : 'freehand')} title="Draw a freehand analysis region" aria-pressed={drawMode === 'freehand'}><PenTool size={16} /><span className="toolbar-btn-text">Pen</span></button>
       </div>
 
       <div className="toolbar-separator" aria-hidden="true" />

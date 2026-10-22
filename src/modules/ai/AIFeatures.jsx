@@ -65,26 +65,6 @@ export default function AIFeatures() {
   }
 
   return <main className="ai-store" id="main-content">
-    <header className="ai-store__header">
-      <div className="ai-store__heading">
-        <p className="page-eyebrow">Clinical AI catalog</p>
-        <h1>AI Model Store</h1>
-        <p>Explore governed decision-support models, understand their purpose, and see which capabilities are available to your account.</p>
-      </div>
-      <Link to="/" className="btn-control-secondary route-link">Back to workspace</Link>
-    </header>
-
-    <section className="ai-store__overview" aria-label="AI catalog summary">
-      <div><Microscope size={20} /><span><strong>{visibleFeatures.length}</strong> models in catalog</span></div>
-      <div><UserRoundCheck size={20} /><span><strong>{availableCount}</strong> available to you</span></div>
-      <div><Clock3 size={20} /><span><strong>{comingSoonCount}</strong> in development</span></div>
-    </section>
-
-    <aside className="ai-store__notice">
-      <ShieldCheck size={20} />
-      <div><strong>Designed to support, not replace, professional diagnosis</strong><p>AI findings must be reviewed alongside the slide, case history, and other clinical evidence by an authorized pathology professional.</p></div>
-    </aside>
-
     <section className="ai-store__toolbar" aria-label="Filter AI models">
       <label className="ai-store__search"><Search size={17} /><span className="sr-only">Search AI models</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search models or clinical purpose" /></label>
       <label className="ai-store__filter"><SlidersHorizontal size={16} /><span className="sr-only">Filter AI models</span><select value={filter} onChange={(event) => setFilter(event.target.value)}><option>All models</option><option>Available</option><option>Coming soon</option><option>Needs access</option></select></label>

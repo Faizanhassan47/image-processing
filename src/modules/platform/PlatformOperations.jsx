@@ -127,21 +127,6 @@ export default function PlatformOperations() {
 
   return (
     <main id="main-content" className="ops-page">
-      <div className="ops-heading">
-        <div>
-          <p className="page-eyebrow">Laboratory & System Operations</p>
-          <h1>Operations Control Center</h1>
-          <p>Real-time laboratory queues, turnaround metrics, WSI ingestion, and system administration.</p>
-        </div>
-        <div className="ops-heading-actions">
-          <Link to="/" className="btn-control-secondary route-link">Workspace</Link>
-          <Link to="/patients" className="btn-control-secondary route-link">Patients</Link>
-          <button className="btn-control-secondary" onClick={() => load()} disabled={loading}>
-            <RefreshCw size={16} /> Refresh
-          </button>
-        </div>
-      </div>
-
       <nav className="ops-nav-tabs" role="tablist" aria-label="Operations views">
         <button
           type="button"

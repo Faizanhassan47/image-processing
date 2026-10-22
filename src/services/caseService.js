@@ -9,5 +9,6 @@ async function request(path, options = {}) {
 }
 
 export const caseService = {
+  list: (signal) => request('/api/cases', { signal }),
   reviewers: (signal) => request('/api/reviewers', { signal }),
 };
