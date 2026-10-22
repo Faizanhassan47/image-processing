@@ -698,7 +698,7 @@ export default function AiAnalysisPanel({
                 );
               })() : (
                 <p className="ai-roi-prompt">
-                  Draw a rectangle annotation or select one to define an ROI.
+                  Draw or select a rectangle, circle, or pen region to define the analysis area.
                 </p>
               )}
               <button

@@ -175,7 +175,6 @@ textarea:focus,
 
 .btn-control-secondary,
 .zoom-btn-group {
-  color: #34434c;
   background: #fff;
   border-color: var(--border-interactive);
   border-radius: 4px;
@@ -470,7 +469,6 @@ textarea:focus,
 }
 
 .annotation-form {
-  background: #f1f7f7;
   border-color: #bcd4d6;
 }
 
