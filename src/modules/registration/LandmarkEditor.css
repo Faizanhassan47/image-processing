@@ -1,0 +1,170 @@
+.landmark-editor {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  font-size: var(--font-size-xs);
+}
+
+.landmark-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-surface-subtle);
+  border-bottom: var(--border-width) solid var(--color-border);
+}
+
+.landmark-title {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  color: var(--color-text);
+  font-weight: var(--font-weight-semibold);
+}
+
+.btn-landmark-clear {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  padding: 3px 6px;
+  border-radius: var(--radius-sm);
+  transition: all 0.15s ease;
+}
+
+.btn-landmark-clear:hover:not(:disabled) {
+  color: var(--color-danger);
+  background: var(--color-danger-soft);
+}
+
+.btn-landmark-clear:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.landmark-instructions {
+  padding: var(--spacing-xs) var(--spacing-md);
+  background: var(--color-info-soft);
+  border-bottom: var(--border-width) solid var(--color-border);
+  color: var(--color-text-muted);
+  line-height: 1.4;
+}
+
+.landmark-instructions p {
+  margin: 0;
+  font-size: 0.72rem;
+}
+
+.landmark-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: var(--spacing-xs);
+}
+
+.landmark-empty {
+  padding: var(--spacing-md);
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.landmark-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: 6px 8px;
+  background: var(--color-surface-subtle);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.landmark-item:hover {
+  border-color: var(--color-primary);
+}
+
+.landmark-item--active {
+  border-color: var(--color-primary);
+  background: var(--color-info-soft);
+}
+
+.landmark-item--incomplete {
+  border-left: 3px solid var(--color-warning);
+}
+
+.landmark-item--complete {
+  border-left: 3px solid var(--color-success);
+}
+
+.landmark-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  font-weight: var(--font-weight-bold);
+  font-size: 0.7rem;
+  flex-shrink: 0;
+}
+
+.landmark-coords {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.coord-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.coord-cell small {
+  color: var(--color-text-muted);
+  width: 65px;
+  flex-shrink: 0;
+}
+
+.coord-cell span {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--color-text);
+}
+
+.coord-cell--missing span {
+  color: var(--color-warning);
+  font-style: italic;
+}
+
+.btn-landmark-delete {
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+}
+
+.btn-landmark-delete:hover:not(:disabled) {
+  color: var(--color-danger);
+  background: var(--color-danger-soft);
+}

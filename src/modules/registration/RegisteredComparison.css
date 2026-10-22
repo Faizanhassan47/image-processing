@@ -1,0 +1,196 @@
+.registered-comparison {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 520px;
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.registered-comparison-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-surface-subtle);
+  border-bottom: var(--border-width) solid var(--color-border);
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+}
+
+.comp-mode-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-mode-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-mode-tab:hover {
+  color: var(--color-text);
+  border-color: var(--color-primary);
+}
+
+.btn-mode-tab--active {
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  border-color: var(--color-primary);
+}
+
+.comp-controls-group {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.opacity-slider-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.opacity-slider-control input[type="range"] {
+  width: 100px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+.btn-quick-opacity {
+  padding: 2px 6px;
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.68rem;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.sync-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-xs);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.sync-toggle-label input {
+  accent-color: var(--color-primary);
+}
+
+.registered-viewport-area {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-canvas, #090d0f);
+}
+
+/* Side-by-side mode */
+.registered-viewport-area.mode-side-by-side {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  background: var(--color-border);
+}
+
+.registered-viewport-area.mode-side-by-side .ref-viewport-container,
+.registered-viewport-area.mode-side-by-side .mov-viewport-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* Overlay & Swipe modes */
+.registered-viewport-area.mode-overlay .ref-viewport-container,
+.registered-viewport-area.mode-swipe .ref-viewport-container {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.registered-viewport-area.mode-overlay .mov-viewport-container,
+.registered-viewport-area.mode-swipe .mov-viewport-container {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 5;
+}
+
+.openseadragon-stage {
+  width: 100%;
+  height: 100%;
+}
+
+.viewport-label {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  padding: 4px 8px;
+  background: rgba(9, 13, 15, 0.85);
+  border: 1px solid var(--border-subtle, #252d31);
+  border-radius: var(--radius-sm);
+  color: #fff;
+  font-size: 0.72rem;
+  pointer-events: none;
+}
+
+.viewport-label span {
+  font-size: 0.65rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+}
+
+/* Swipe divider line and handle */
+.swipe-divider-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--color-primary);
+  z-index: 20;
+  cursor: ew-resize;
+  transform: translateX(-50%);
+  touch-action: none;
+}
+
+.swipe-handle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
+}

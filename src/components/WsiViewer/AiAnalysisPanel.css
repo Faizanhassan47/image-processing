@@ -61,6 +61,97 @@
   font-weight: var(--font-weight-medium);
 }
 
+.ai-feature-selector {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0 14px 10px;
+}
+
+.ai-feature-selector label {
+  color: var(--text-dim);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+}
+
+.ai-feature-selector select {
+  width: 100%;
+  min-height: var(--button-height);
+  padding: 0 var(--space-3);
+  color: var(--text-main);
+  background: var(--bg-inner);
+  border: 1px solid var(--border-interactive);
+  border-radius: var(--radius-sm);
+  font: inherit;
+}
+
+.ai-feature-selector select:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.ai-feature-selector__description,
+.ai-access-empty {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: var(--font-size-xs);
+  line-height: 1.45;
+}
+
+.ai-access-empty {
+  margin: 0 14px 12px;
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-inner);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.ai-access-details-button {
+  display: block;
+  margin-top: var(--space-2);
+  padding: 0;
+  color: var(--primary);
+  background: transparent;
+  border: 0;
+  font: inherit;
+  font-weight: var(--font-weight-semibold);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.ai-access-empty__detail {
+  display: block;
+  margin-top: var(--space-2);
+}
+
+.ai-completion-notice,
+.ai-confirmation {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0 14px 10px;
+  padding: var(--space-3) var(--space-4);
+  color: var(--text-main);
+  background: var(--bg-inner);
+  border: 1px solid var(--border-interactive);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  line-height: 1.45;
+}
+
+.ai-completion-notice {
+  color: var(--primary-dark);
+}
+
+.ai-confirmation__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+}
+
+.ai-confirmation__actions .ai-action-btn {
+  min-height: calc(var(--button-height) - 6px);
+}
+
 /* ── ROI selection prompt ──────────────────────────────────── */
 .ai-roi-prompt {
   margin: 0 14px 10px;

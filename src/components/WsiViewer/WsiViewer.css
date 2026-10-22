@@ -46,7 +46,7 @@
 .annotation-swatch svg { display: block; width: 8px; height: 24px; }
 
 .viewer-filter-definitions { position: absolute; width: 0; height: 0; overflow: hidden; }
-.wsi-stage { --viewer-brightness: 1; --viewer-contrast: 1; --viewer-profile-filter: saturate(1); }
+.wsi-stage { --viewer-brightness: 1; --viewer-contrast: 1; --viewer-gamma: 1; --viewer-profile-filter: saturate(1); }
 .wsi-stage[data-brightness="50"] { --viewer-brightness: .5; }
 .wsi-stage[data-brightness="55"] { --viewer-brightness: .55; }
 .wsi-stage[data-brightness="60"] { --viewer-brightness: .6; }
@@ -87,7 +87,15 @@
 .wsi-stage[data-contrast="140"] { --viewer-contrast: 1.4; }
 .wsi-stage[data-contrast="145"] { --viewer-contrast: 1.45; }
 .wsi-stage[data-contrast="150"] { --viewer-contrast: 1.5; }
-.wsi-stage .wsi-viewer { filter: brightness(var(--viewer-brightness)) contrast(var(--viewer-contrast)) var(--viewer-profile-filter); }
+.wsi-stage .wsi-viewer canvas {
+  filter: brightness(var(--viewer-brightness)) contrast(var(--viewer-contrast)) var(--viewer-profile-filter) url(#wsi-gamma-filter);
+  transition: filter 0.05s ease-out;
+}
+.wsi-stage.flip-v-active .wsi-viewer canvas,
+.wsi-stage.flip-v-active .annotation-svg-overlay,
+.wsi-stage.flip-v-active .viewer-trail-overlay {
+  transform: scaleY(-1);
+}
 .wsi-stage.display-grayscale { --viewer-profile-filter: grayscale(1); }
 .wsi-stage.display-inverted { --viewer-profile-filter: invert(1); }
 .wsi-stage.display-high-contrast { --viewer-profile-filter: contrast(1.45); }

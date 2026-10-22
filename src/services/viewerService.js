@@ -33,7 +33,17 @@ export const viewerService = {
   createBookmark: (slideId, bookmark) => request(`${platformRoot}/slides/${slideId}/bookmarks`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(bookmark),
   }),
+  renameBookmark: (slideId, bookmarkId, name) => request(`${platformRoot}/slides/${slideId}/bookmarks/${bookmarkId}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }),
+  }),
   deleteBookmark: (slideId, bookmarkId) => request(`${platformRoot}/slides/${slideId}/bookmarks/${bookmarkId}`, { method: 'DELETE' }),
+
+  // ── Viewing trail coverage ───────────────────────────────────────────────
+  getTrail: (slideId, signal) => request(`${apiRoot}/slides/${slideId}/trail`, { signal }),
+  saveTrail: (slideId, trail, signal) => request(`${apiRoot}/slides/${slideId}/trail`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(trail), signal,
+  }),
+  clearTrail: (slideId) => request(`${apiRoot}/slides/${slideId}/trail`, { method: 'DELETE' }),
 
   // ── HoVer-Net AI analysis ────────────────────────────────────────────────
   /** Submit a new AI analysis for the given slide + optional ROI. */

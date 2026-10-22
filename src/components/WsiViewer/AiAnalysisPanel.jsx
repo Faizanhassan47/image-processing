@@ -197,6 +197,7 @@ export default function AiAnalysisPanel({
 }) {
   const [open, setOpen] = useState(true);
   const [entitlements, setEntitlements] = useState(null);
+  const [selectedFeatureCode, setSelectedFeatureCode] = useState('');
   const [running, setRunning] = useState(false);
   const [activeJob, setActiveJob] = useState(null);
   const [cancelling, setCancelling] = useState(false);
@@ -207,6 +208,10 @@ export default function AiAnalysisPanel({
   const [detail, setDetail] = useState(null);   // full analysis record
   const [internalHiddenClasses, setInternalHiddenClasses] = useState(new Set());
   const [internalSelectedNucleus, setInternalSelectedNucleus] = useState(null);
+  const [pendingConfirmation, setPendingConfirmation] = useState(null);
+  const [retryRequest, setRetryRequest] = useState(null);
+  const [completionNotice, setCompletionNotice] = useState('');
+  const [showAccessDetails, setShowAccessDetails] = useState(false);
   const abortRef = useRef(null);
   const pollTimerRef = useRef(null);
 
@@ -235,7 +240,14 @@ export default function AiAnalysisPanel({
   useEffect(() => {
     const controller = new AbortController();
     aiSubscriptionService.entitlements(controller.signal)
-      .then(setEntitlements)
+      .then((data) => {
+        setEntitlements(data);
+        const available = (data?.features || []).filter((feature) => (
+          feature.is_entitled && feature.is_active && feature.is_implemented && feature.user_enabled
+        ));
+        setSelectedFeatureCode((current) => available.some((feature) => feature.feature_code === current)
+          ? current : (available[0]?.feature_code || ''));
+      })
       .catch((error) => { if (error.name !== 'AbortError') setEntitlements({ effective_feature_codes: [] }); });
     return () => controller.abort();
   }, []);
@@ -262,7 +274,7 @@ export default function AiAnalysisPanel({
     loadHistory();
   }, [slide.id, stopPolling, loadHistory]);
 
-  const startPollingJob = useCallback((jobId) => {
+  const startPollingJob = useCallback((jobId, autoTissue) => {
     stopPolling();
     const poll = async () => {
       try {
@@ -279,11 +291,13 @@ export default function AiAnalysisPanel({
             setAnalyses((prev) => [result, ...prev.filter((a) => a.id !== result.id)]);
             onAnalysisReady?.(result);
             if (result.roi) onPanToRoi?.(result.roi);
+            setCompletionNotice('AI analysis completed. Results are ready to review.');
           }
         } else if (job.status === 'failed') {
           stopPolling();
           setRunning(false);
           setActiveJob(null);
+          setRetryRequest({ autoTissue });
           onError?.(job.error || 'AI analysis failed');
         } else if (job.status === 'cancelled') {
           stopPolling();
@@ -322,7 +336,7 @@ export default function AiAnalysisPanel({
 
   // ── Run AI analysis ───────────────────────────────────────────────────────
   const runAnalysis = useCallback(async (autoTissue = false) => {
-    if (running || !entitlements?.effective_feature_codes?.includes('HOVERNET')) return;
+    if (running || selectedFeatureCode !== 'HOVERNET') return;
     setRunning(true);
     setActiveJob(null);
     setSelectedNucleus(null);
@@ -331,10 +345,23 @@ export default function AiAnalysisPanel({
     setDetail(null);
 
     abortRef.current = new AbortController();
+    try {
+      const freshEntitlements = await aiSubscriptionService.entitlements(abortRef.current.signal);
+      setEntitlements(freshEntitlements);
+      if (!freshEntitlements?.effective_feature_codes?.includes(selectedFeatureCode)) {
+        throw new Error('This AI feature is no longer available to your account.');
+      }
+    } catch (err) {
+      if (err.name !== 'AbortError') onError?.(err.message || 'Could not verify AI feature access.');
+      setRunning(false);
+      abortRef.current = null;
+      return;
+    }
     const payload = autoTissue
-      ? { auto_tissue: true }
+      ? { feature_code: selectedFeatureCode, auto_tissue: true }
       : roiRect
         ? {
+            feature_code: selectedFeatureCode,
             x: Math.round(roiRect.x),
             y: Math.round(roiRect.y),
             width: Math.round(roiRect.width),
@@ -344,7 +371,7 @@ export default function AiAnalysisPanel({
             roi_width: Math.round(roiRect.width),
             roi_height: Math.round(roiRect.height),
           }
-        : { auto_tissue: true };
+        : { feature_code: selectedFeatureCode, auto_tissue: true };
 
     try {
       const result = await viewerService.runAiAnalysis(slide.id, payload, abortRef.current.signal);
@@ -363,7 +390,7 @@ export default function AiAnalysisPanel({
             stage: 'Started inference worker...',
           },
         });
-        startPollingJob(result.job_id);
+        startPollingJob(result.job_id, autoTissue);
       } else if (result) {
         // Completed synchronously (small ROI)
         setDetail(result);
@@ -371,15 +398,19 @@ export default function AiAnalysisPanel({
         setAnalyses((prev) => [result, ...prev.filter((a) => a.id !== result.id)]);
         onAnalysisReady?.(result);
         if (result.roi) onPanToRoi?.(result.roi);
+        setCompletionNotice('AI analysis completed. Results are ready to review.');
         setRunning(false);
       }
     } catch (err) {
-      if (err.name !== 'AbortError') onError?.(`AI analysis failed: ${err.message}`);
+      if (err.name !== 'AbortError') {
+        setRetryRequest({ autoTissue });
+        onError?.(`AI analysis failed: ${err.message}`);
+      }
       setRunning(false);
     } finally {
       abortRef.current = null;
     }
-  }, [running, entitlements, roiRect, slide.id, onAnalysisReady, onError, onPanToRoi, startPollingJob]);
+  }, [running, selectedFeatureCode, roiRect, slide.id, onAnalysisReady, onError, onPanToRoi, startPollingJob]);
 
   // ── PDF actions ───────────────────────────────────────────────────────────
   const handleDownloadPdf = useCallback(async () => {
@@ -459,12 +490,45 @@ export default function AiAnalysisPanel({
   const totalNuclei = detail?.total_nuclei ?? detail?.analysis?.total_nuclei ?? detail?.counts?.total ?? 0;
   const hasResults = Boolean(detail && (totalNuclei > 0 || detail.status?.toLowerCase() === 'completed'));
   const elapsedSec = detail?.elapsed_seconds ?? detail?.inference_duration ?? null;
-  const canRunHoverNet = entitlements?.effective_feature_codes?.includes('HOVERNET');
+  const availableFeatures = (entitlements?.features || []).filter((feature) => (
+    feature.is_entitled && feature.is_active && feature.is_implemented && feature.user_enabled
+  ));
+  const selectedFeature = availableFeatures.find((feature) => feature.feature_code === selectedFeatureCode);
+  const canRunSelectedFeature = selectedFeatureCode === 'HOVERNET';
+  const accessDetail = !entitlements?.features?.length
+    ? 'Your AI access could not be loaded.'
+    : entitlements.features.every((feature) => !feature.is_entitled)
+      ? 'Your account does not have an active subscription or feature grant.'
+      : entitlements.features.every((feature) => !feature.user_enabled)
+        ? 'Your available AI features are turned off in your preferences.'
+        : entitlements.features.every((feature) => !feature.is_active)
+          ? 'AI features are currently disabled by an administrator.'
+          : 'No executable AI features are currently available.';
 
-  if (!canRunHoverNet) return null;
+  if (entitlements && !availableFeatures.length) {
+    return (
+      <section className="ai-panel" aria-label="AI analysis">
+        <div className="ai-panel-header">
+          <div className="ai-panel-header-left">
+            <Activity size={15} aria-hidden="true" />
+            <p className="ai-panel-title">AI Analysis</p>
+          </div>
+        </div>
+        <p className="ai-access-empty" role="status">
+          No AI features are available for your account. Contact an administrator.
+          <button type="button" className="ai-access-details-button" onClick={() => setShowAccessDetails((value) => !value)} aria-expanded={showAccessDetails}>
+            {showAccessDetails ? 'Hide details' : 'Why unavailable?'}
+          </button>
+          {showAccessDetails && <span className="ai-access-empty__detail">{accessDetail}</span>}
+        </p>
+      </section>
+    );
+  }
+
+  if (!entitlements) return null;
 
   return (
-    <section className="ai-panel" aria-label="HoVer-Net AI analysis">
+    <section className="ai-panel" aria-label="AI analysis">
 
       {/* ── Header / toggle ───────────────────────────────────────── */}
       <div
@@ -480,7 +544,7 @@ export default function AiAnalysisPanel({
           <div>
             <p className="ai-panel-title">AI Analysis</p>
             {hasResults && (
-              <p className="ai-panel-subtitle">{totalNuclei} nuclei · HoVer-Net Fast</p>
+              <p className="ai-panel-subtitle">{totalNuclei} nuclei · {selectedFeature?.feature_name || 'HoVer-Net'} Fast</p>
             )}
           </div>
         </div>
@@ -498,6 +562,22 @@ export default function AiAnalysisPanel({
             <AlertTriangle size={11} aria-hidden="true" style={{ marginRight: 4, verticalAlign: 'middle' }} />
             Research Use Only — Not for Clinical Diagnosis
           </p>
+
+          <div className="ai-feature-selector">
+            <label htmlFor="ai-feature-select">AI feature</label>
+            <select id="ai-feature-select" value={selectedFeatureCode} onChange={(event) => setSelectedFeatureCode(event.target.value)} disabled={running} aria-label="Select permitted AI feature">
+              {availableFeatures.map((feature) => (
+                <option key={feature.feature_code} value={feature.feature_code}>
+                  {feature.catalog_title || feature.feature_name}
+                </option>
+              ))}
+            </select>
+            {selectedFeature?.description && (
+              <p className="ai-feature-selector__description">{selectedFeature.description}</p>
+            )}
+          </div>
+
+          {completionNotice && <p className="ai-completion-notice" role="status">{completionNotice}</p>}
 
           {/* ── Status / Progress ───────────────────────────────── */}
           {running && (
@@ -555,6 +635,16 @@ export default function AiAnalysisPanel({
           {/* ── Run buttons ───────────────────────────────────────── */}
           {!running && (
             <div className="ai-actions">
+              {pendingConfirmation && (
+                <div className="ai-confirmation" role="alert">
+                  <strong>Large analysis request</strong>
+                  <span>{pendingConfirmation.patches} patches; estimated time {formatDuration(pendingConfirmation.estSec)}. This will run in the background.</span>
+                  <div className="ai-confirmation__actions">
+                    <button type="button" className="ai-action-btn ai-action-btn--secondary" onClick={() => setPendingConfirmation(null)}>Cancel</button>
+                    <button type="button" className="ai-action-btn" onClick={() => { const request = pendingConfirmation; setPendingConfirmation(null); runAnalysis(request.autoTissue); }}>Start analysis</button>
+                  </div>
+                </div>
+              )}
               {roiRect ? (() => {
                 const w = Math.round(roiRect.width);
                 const h = Math.round(roiRect.height);
@@ -597,9 +687,9 @@ export default function AiAnalysisPanel({
                       id="ai-run-roi-btn"
                       type="button"
                       className="ai-action-btn"
-                      onClick={() => runAnalysis(false)}
-                      disabled={isTooLarge || isTooSmall}
-                      aria-label="Analyze selected ROI with HoVer-Net"
+                      onClick={() => isLargeJob ? setPendingConfirmation({ autoTissue: false, patches, estSec }) : runAnalysis(false)}
+                      disabled={isTooLarge || isTooSmall || !canRunSelectedFeature}
+                      aria-label={`Analyze selected ROI with ${selectedFeature?.feature_name || 'the selected AI feature'}`}
                     >
                       <Play size={14} aria-hidden="true" />
                       Analyze Selected ROI
@@ -616,11 +706,17 @@ export default function AiAnalysisPanel({
                 type="button"
                 className="ai-action-btn ai-action-btn--secondary"
                 onClick={() => runAnalysis(true)}
-                aria-label="Auto-detect tissue and analyze with HoVer-Net"
+                disabled={!canRunSelectedFeature}
+                aria-label={`Auto-detect tissue and analyze with ${selectedFeature?.feature_name || 'the selected AI feature'}`}
               >
                 <Zap size={14} aria-hidden="true" />
                 Auto-Detect &amp; Analyze
               </button>
+              {retryRequest && (
+                <button type="button" className="ai-action-btn ai-action-btn--secondary" onClick={() => runAnalysis(retryRequest.autoTissue)}>
+                  Retry last analysis
+                </button>
+              )}
             </div>
           )}
 

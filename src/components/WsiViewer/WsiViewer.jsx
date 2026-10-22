@@ -10,6 +10,11 @@ import { getAnnotationHoverMeasurements, getAnnotationMeasurements } from './ann
 import { useAuth } from '../../modules/auth/AuthProvider';
 import { SYSTEM_ADMIN_ROLE, SUPER_ADMIN_ROLE } from '../../config/roles';
 import AiAnalysisPanel, { PANNUKE_CLASSES } from './AiAnalysisPanel';
+import ViewerToolbar from './ViewerToolbar';
+import ViewerDisplaySettings from './ViewerDisplaySettings';
+import ViewerBookmarksModal from './ViewerBookmarksModal';
+import ViewerShortcutsModal from './ViewerShortcutsModal';
+import ViewerTrail from './ViewerTrail';
 
 const DISPLAY_PROFILES = {
   standard: ['Standard color', 'Original RGB display without a profile transformation.'],
@@ -49,7 +54,7 @@ function scaleLabel(microns) {
   return `${Number(microns.toPrecision(3))} µm`;
 }
 
-export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, externalViewerRef }) {
+export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, externalViewerRef, onOpenRegistration }) {
   const { user } = useAuth();
   const elementRef = useRef(null);
   const workspaceRef = useRef(null);
@@ -71,13 +76,28 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
   const [validation, setValidation] = useState(null);
   const [aiResults, setAiResults] = useState([]);
   const [aiVisible, setAiVisible] = useState(true);
+
+  // Advanced Viewer Display & Transformation States
   const [brightness, setBrightness] = useState(100);
   const [contrast, setContrast] = useState(100);
+  const [gamma, setGamma] = useState(1.0);
   const [displayProfile, setDisplayProfile] = useState('standard');
+  const [rotationAngle, setRotationAngle] = useState(0);
+  const [flipH, setFlipH] = useState(false);
+  const [flipV, setFlipV] = useState(false);
+  const [minimapVisible, setMinimapVisible] = useState(true);
+  const [trailVisible, setTrailVisible] = useState(false);
+  const [coverageBoxes, setCoverageBoxes] = useState([]);
+  const [showAdjustments, setShowAdjustments] = useState(false);
+  const [showViewpointsModal, setShowViewpointsModal] = useState(false);
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+  const [prefSaving, setPrefSaving] = useState(false);
+
   const [loadFailure, setLoadFailure] = useState('');
   const preferencesSlideRef = useRef(null);
   const svgOverlayRef = useRef(null);
   const lastTileErrorToastTime = useRef(0);
+  const trailDebounceTimer = useRef(null);
   
   // For rendering SVG aligned with OpenSeadragon
   const [, setViewState] = useState({ zoom: 1, pan: {x: 0, y: 0} });
@@ -161,28 +181,46 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
       viewerService.bookmarks(slide.id, controller.signal).catch(() => []),
       viewerService.aiResults(slide.id, controller.signal).catch(() => []),
       viewerService.preferences(slide.id, controller.signal).catch(() => ({ display_profile: 'standard', brightness: 100, contrast: 100 })),
-    ]).then(([metadata, saved, results, preferences]) => {
+      viewerService.getTrail(slide.id, controller.signal).catch(() => ({ coverage_boxes: [] })),
+    ]).then(([metadata, saved, results, preferences, trailData]) => {
       if (!controller.signal.aborted) {
-        setValidation(metadata); setBookmarks(saved); setAiResults(results);
-        setDisplayProfile(preferences.display_profile); setBrightness(preferences.brightness); setContrast(preferences.contrast);
+        setValidation(metadata);
+        setBookmarks(saved);
+        setAiResults(results);
+        setDisplayProfile(preferences.display_profile || 'standard');
+        setBrightness(preferences.brightness ?? 100);
+        setContrast(preferences.contrast ?? 100);
+        setGamma(preferences.gamma ?? 1.0);
+        if (preferences.flip_h !== undefined) setFlipH(Boolean(preferences.flip_h));
+        if (preferences.flip_v !== undefined) setFlipV(Boolean(preferences.flip_v));
+        if (preferences.minimap_visible !== undefined) setMinimapVisible(Boolean(preferences.minimap_visible));
+        if (preferences.trail_visible !== undefined) setTrailVisible(Boolean(preferences.trail_visible));
+        if (trailData?.coverage_boxes) setCoverageBoxes(trailData.coverage_boxes);
         preferencesSlideRef.current = slide.id;
       }
     });
     return () => controller.abort();
   }, [slide.id]);
 
-  useEffect(() => {
-    if (preferencesSlideRef.current !== slide.id) return undefined;
-    const controller = new AbortController();
-    const timer = window.setTimeout(() => {
-      viewerService.savePreferences(slide.id, {
-        display_profile: displayProfile, brightness, contrast,
-      }, controller.signal).catch((error) => {
-        if (error.name !== 'AbortError') onError(`Could not save display metadata: ${error.message}`);
+  const saveCurrentPreferences = useCallback(async () => {
+    setPrefSaving(true);
+    try {
+      await viewerService.savePreferences(slide.id, {
+        display_profile: displayProfile,
+        brightness,
+        contrast,
+        gamma,
+        flip_h: flipH,
+        flip_v: flipV,
+        minimap_visible: minimapVisible,
+        trail_visible: trailVisible,
       });
-    }, 500);
-    return () => { window.clearTimeout(timer); controller.abort(); };
-  }, [brightness, contrast, displayProfile, onError, slide.id]);
+    } catch (error) {
+      onError(`Could not save display preferences: ${error.message}`);
+    } finally {
+      setPrefSaving(false);
+    }
+  }, [displayProfile, brightness, contrast, gamma, flipH, flipV, minimapVisible, trailVisible, onError, slide.id]);
 
   useEffect(() => {
     let dziUrl = slide.dzi_url;
@@ -219,13 +257,43 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
       }
     });
     
-    // Track viewport for SVG synchronization
+    // Track viewport for SVG synchronization and viewing trail coverage
     const updateViewState = () => {
       if (!viewer.viewport) return;
       setViewState({
         zoom: viewer.viewport.getZoom(true),
         pan: viewer.viewport.getCenter(true)
       });
+      
+      // Coarse grid viewport tracking for Viewing Trail
+      const item = viewer.world?.getItemAt(0);
+      if (item) {
+        const bounds = viewer.viewport.getBounds(true);
+        const p1 = item.viewportToImageCoordinates(new OpenSeadragon.Point(bounds.x, bounds.y));
+        const p2 = item.viewportToImageCoordinates(new OpenSeadragon.Point(bounds.x + bounds.width, bounds.y + bounds.height));
+        const gridW = Math.max(100, Math.round(slide.width / 50));
+        const gridH = Math.max(100, Math.round(slide.height / 50));
+        const gx = Math.floor(Math.max(0, p1.x) / gridW) * gridW;
+        const gy = Math.floor(Math.max(0, p1.y) / gridH) * gridH;
+        const gw = Math.ceil(Math.min(slide.width, p2.x - gx) / gridW) * gridW;
+        const gh = Math.ceil(Math.min(slide.height, p2.y - gy) / gridH) * gridH;
+
+        if (gw > 0 && gh > 0) {
+          setCoverageBoxes((prev) => {
+            const exists = prev.some((b) => Math.abs(b.x - gx) < gridW / 2 && Math.abs(b.y - gy) < gridH / 2);
+            if (exists) return prev;
+            const updated = [...prev, { x: gx, y: gy, w: gw, h: gh }].slice(-500);
+            
+            // Debounced trail persistence
+            if (trailDebounceTimer.current) clearTimeout(trailDebounceTimer.current);
+            trailDebounceTimer.current = setTimeout(() => {
+              viewerService.saveTrail(slide.id, { coverage_boxes: updated }).catch(() => {});
+            }, 3000);
+
+            return updated;
+          });
+        }
+      }
     };
     viewer.addHandler('update-viewport', updateViewState);
     viewer.addHandler('animation', updateViewState);
@@ -470,35 +538,141 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
     };
   }, [drawMode, slide.height, slide.width, viewerReady]);
 
-  const fit = () => viewerRef.current?.viewport.goHome(true);
-  const reset = () => { fit(); viewerRef.current?.viewport.setRotation(0); };
-  const zoomBy = (factor) => viewerRef.current?.viewport.zoomBy(factor);
-  const rotateBy = (degrees) => viewerRef.current?.viewport.setRotation(viewerRef.current.viewport.getRotation() + degrees);
+  // Rotation & Flipping
+  const setRotation = useCallback((angle) => {
+    const normalized = ((angle % 360) + 360) % 360;
+    setRotationAngle(normalized);
+    viewerRef.current?.viewport?.setRotation(normalized);
+  }, []);
+
+  const rotateBy = useCallback((degrees) => {
+    const current = viewerRef.current?.viewport?.getRotation() || 0;
+    setRotation(current + degrees);
+  }, [setRotation]);
+
+  const toggleFlipH = useCallback(() => {
+    const viewer = viewerRef.current;
+    if (!viewer?.viewport) return;
+    const next = !flipH;
+    setFlipH(next);
+    if (viewer.viewport.setFlip) {
+      viewer.viewport.setFlip(next);
+    }
+  }, [flipH]);
+
+  const toggleFlipV = useCallback(() => {
+    setFlipV((v) => !v);
+  }, []);
+
+  const resetFlip = useCallback(() => {
+    setFlipH(false);
+    setFlipV(false);
+    if (viewerRef.current?.viewport?.setFlip) {
+      viewerRef.current.viewport.setFlip(false);
+    }
+  }, []);
+
+  const fit = useCallback(() => {
+    viewerRef.current?.viewport?.goHome(true);
+  }, []);
+
+  const reset = useCallback(() => {
+    fit();
+    setRotation(0);
+    resetFlip();
+    setBrightness(100);
+    setContrast(100);
+    setGamma(1.0);
+    setDisplayProfile('standard');
+  }, [fit, setRotation, resetFlip]);
+
+  const toggleMinimap = useCallback(() => {
+    const viewer = viewerRef.current;
+    const next = !minimapVisible;
+    setMinimapVisible(next);
+    if (viewer?.navigator) {
+      if (next) viewer.navigator.element.style.display = '';
+      else viewer.navigator.element.style.display = 'none';
+    }
+  }, [minimapVisible]);
+
+  const toggleTrail = useCallback(() => {
+    setTrailVisible((t) => !t);
+  }, []);
+
+  const clearCurrentTrail = useCallback(async () => {
+    try {
+      await viewerService.clearTrail(slide.id);
+      setCoverageBoxes([]);
+    } catch (error) {
+      onError(`Could not clear review trail: ${error.message}`);
+    }
+  }, [slide.id, onError]);
+
+  const zoomBy = (factor) => viewerRef.current?.viewport?.zoomBy(factor);
   const retrySlide = () => { setLoadFailure(''); viewerRef.current?.open(slide.dzi_url?.startsWith('/') && API ? `${API}${slide.dzi_url}` : slide.dzi_url); };
+
   const saveBookmark = async () => {
     const viewport = viewerRef.current?.viewport;
     if (!viewport) return;
     const bounds = viewport.getBounds(true);
-    const name = `Region ${bookmarks.length + 1}`;
+    const name = `Viewpoint ${bookmarks.length + 1}`;
     try {
       const saved = await viewerService.createBookmark(slide.id, {
-        name, viewport_x: bounds.x, viewport_y: bounds.y, viewport_width: bounds.width,
-        viewport_height: bounds.height, rotation: viewport.getRotation(),
+        name,
+        viewport_x: bounds.x,
+        viewport_y: bounds.y,
+        viewport_width: bounds.width,
+        viewport_height: bounds.height,
+        rotation: viewport.getRotation() || 0,
+        flip_h: flipH,
+        flip_v: flipV,
+        brightness,
+        contrast,
+        gamma,
+        annotations_visible: visible,
+        minimap_visible: minimapVisible,
       });
       setBookmarks((current) => [saved, ...current]);
-    } catch (error) { onError(`Could not save region: ${error.message}`); }
+    } catch (error) { onError(`Could not save viewpoint: ${error.message}`); }
   };
+
   const openBookmark = (bookmark) => {
     const viewport = viewerRef.current?.viewport;
     if (!viewport) return;
-    viewport.setRotation(bookmark.rotation || 0, true);
+    if (bookmark.rotation !== undefined) setRotation(bookmark.rotation);
+    if (bookmark.flip_h !== undefined) {
+      setFlipH(Boolean(bookmark.flip_h));
+      if (viewport.setFlip) viewport.setFlip(Boolean(bookmark.flip_h));
+    }
+    if (bookmark.flip_v !== undefined) setFlipV(Boolean(bookmark.flip_v));
+    if (bookmark.brightness !== undefined) setBrightness(bookmark.brightness);
+    if (bookmark.contrast !== undefined) setContrast(bookmark.contrast);
+    if (bookmark.gamma !== undefined) setGamma(bookmark.gamma);
+    if (bookmark.annotations_visible !== undefined) setVisible(Boolean(bookmark.annotations_visible));
+    if (bookmark.minimap_visible !== undefined) {
+      setMinimapVisible(Boolean(bookmark.minimap_visible));
+      if (viewerRef.current?.navigator) {
+        viewerRef.current.navigator.element.style.display = bookmark.minimap_visible ? '' : 'none';
+      }
+    }
     viewport.fitBounds(new OpenSeadragon.Rect(bookmark.viewport_x, bookmark.viewport_y, bookmark.viewport_width, bookmark.viewport_height), true);
   };
+
+  const renameBookmark = async (bookmarkId, name) => {
+    try {
+      const updated = await viewerService.renameBookmark(slide.id, bookmarkId, name);
+      setBookmarks((current) => current.map((bm) => (bm.id === bookmarkId ? updated : bm)));
+    } catch (error) {
+      onError(`Could not rename viewpoint: ${error.message}`);
+    }
+  };
+
   const removeBookmark = async (bookmark) => {
     try {
       await viewerService.deleteBookmark(slide.id, bookmark.id);
       setBookmarks((current) => current.filter((item) => item.id !== bookmark.id));
-    } catch (error) { onError(`Could not delete saved region: ${error.message}`); }
+    } catch (error) { onError(`Could not delete viewpoint: ${error.message}`); }
   };
 
   useEffect(() => {
@@ -536,7 +710,12 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
         '_': () => zoomBy(0.8),
         '0': reset,
         'f': fit,
-        'r': () => rotateBy(90),
+        'r': () => rotateBy(event.shiftKey ? -90 : 90),
+        'h': toggleFlipH,
+        'v': toggleFlipV,
+        'm': toggleMinimap,
+        't': toggleTrail,
+        'a': () => setVisible((v) => !v),
         'b': saveBookmark,
         'arrowup': () => panBy(0, -1),
         'arrowdown': () => panBy(0, 1),
@@ -558,7 +737,7 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
     };
     document.addEventListener('keydown', keydown);
     return () => document.removeEventListener('keydown', keydown);
-  });
+  }, [draft, redoDraft, fit, reset, rotateBy, toggleFlipH, toggleFlipV, toggleMinimap, toggleTrail, saveBookmark]);
   const toggleFullscreen = async () => {
     try {
       if (document.fullscreenElement === workspaceRef.current) await document.exitFullscreen();
@@ -748,7 +927,6 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
   const measurementLabel = (annotation) => pixelSize && annotation.annotation_type === 'rectangle'
     ? `${(annotation.width * pixelSize).toFixed(1)} × ${(annotation.height * pixelSize).toFixed(1)} µm`
     : null;
-  const activeProfile = DISPLAY_PROFILES[displayProfile] || DISPLAY_PROFILES.standard;
   const showAnnotationMeasurement = (annotation) => setHoveredAnnotation(annotation);
   const aiMeasurementTarget = (result) => ({
     ...result.geometry,
@@ -756,8 +934,6 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
     label: `${result.model_name} ${result.model_version}`,
     measurementSource: 'AI-generated region',
   });
-  const resetDisplay = () => { setDisplayProfile('standard'); setBrightness(100); setContrast(100); };
-  const autoBalanceDisplay = () => { setDisplayProfile('standard'); setBrightness(105); setContrast(110); };
   const canCalibrate = ['Laboratory Manager', SYSTEM_ADMIN_ROLE, SUPER_ADMIN_ROLE].includes(user?.role);
   const annotationCategories = [...new Set(annotations.map((annotation) => annotation.category).filter(Boolean))].sort();
   const annotationStatuses = [...new Set(annotations.map((annotation) => annotation.annotation_status).filter(Boolean))].sort();
@@ -789,46 +965,90 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
           <filter id="wsi-red-channel" colorInterpolationFilters="sRGB"><feColorMatrix type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" /></filter>
           <filter id="wsi-green-channel" colorInterpolationFilters="sRGB"><feColorMatrix type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" /></filter>
           <filter id="wsi-blue-channel" colorInterpolationFilters="sRGB"><feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" /></filter>
+          <filter id="wsi-gamma-filter">
+            <feComponentTransfer>
+              <feFuncR type="gamma" amplitude="1" exponent={gamma ? 1 / gamma : 1} />
+              <feFuncG type="gamma" amplitude="1" exponent={gamma ? 1 / gamma : 1} />
+              <feFuncB type="gamma" amplitude="1" exponent={gamma ? 1 / gamma : 1} />
+            </feComponentTransfer>
+          </filter>
         </defs>
       </svg>
       <div className="viewer-canvas-container">
-        <div className="viewer-hint-bar">
-          <span>{drawMode ? `Drawing ${drawMode}. ESC to cancel.` : 'Scroll to zoom • Drag to pan'}</span>
-          <div className="wsi-controls">
-            <label className={`annotation-tool-menu ${drawMode ? 'annotation-tool-menu--active' : ''}`}>
-              <PenTool size={15} aria-hidden="true" />
-              <span className="sr-only">Annotation tool</span>
-              <select value={drawMode || ''} onChange={(event) => setDrawMode(event.target.value || null)} aria-label="Select annotation tool">
-                <option value="">Annotation tools</option>
-                <option value="point">Point marker</option>
-                <option value="line">Line measurement</option>
-                <option value="rectangle">Rectangle region</option>
-                <option value="ellipse">Circle / ellipse region</option>
-                <option value="polygon">Polygon region</option>
-                <option value="arrow">Arrow marker</option>
-                <option value="freehand">Freehand region</option>
-              </select>
-            </label>
-            <div className="v-divider" aria-hidden="true" />
-            <button type="button" className="btn-control-secondary viewer-icon-button" onClick={() => zoomBy(1.25)} title="Zoom in (+)" aria-label="Zoom in"><Plus size={15} /></button>
-            <button type="button" className="btn-control-secondary viewer-icon-button" onClick={() => zoomBy(0.8)} title="Zoom out (-)" aria-label="Zoom out"><Minus size={15} /></button>
-            <button type="button" className="btn-control-secondary viewer-icon-button" onClick={() => rotateBy(90)} title="Rotate clockwise (R)" aria-label="Rotate clockwise"><RotateCw size={15} /></button>
-            <button type="button" className="btn-control-secondary" onClick={saveBookmark} title="Save current region (B)" aria-label="Save current region"><Bookmark size={15} /><span className="viewer-control-label">Save region</span></button>
-            <div className="v-divider" aria-hidden="true" />
-            <button type="button" className="btn-control-secondary" aria-pressed={!visible} onClick={() => setVisible((value) => !value)}>
-              {visible ? <EyeOff size={15} /> : <Eye size={15} />} <span className="viewer-control-label">{visible ? 'Hide' : 'Show'}</span>
-            </button>
-            <button type="button" className="btn-control-secondary" onClick={fit} aria-label="Fit slide to screen"><Maximize2 size={15} /><span className="viewer-control-label">Fit</span></button>
-            <button type="button" className="btn-control-secondary" onClick={reset} aria-label="Reset slide view"><RotateCcw size={15} /><span className="viewer-control-label">Reset</span></button>
-            <button type="button" className="btn-control-secondary" onClick={toggleFullscreen} aria-label={fullscreen ? 'Exit fullscreen' : 'Open fullscreen'}>
-              {fullscreen ? <Minimize2 size={15} /> : <Expand size={15} />} <span className="viewer-control-label">{fullscreen ? 'Exit fullscreen' : 'Fullscreen'}</span>
-            </button>
-          </div>
-        </div>
+        <ViewerToolbar
+          onZoomIn={() => zoomBy(1.25)}
+          onZoomOut={() => zoomBy(0.8)}
+          onFit={fit}
+          onReset={reset}
+          onRotateCw={() => rotateBy(90)}
+          onRotateCcw={() => rotateBy(-90)}
+          onRotate180={() => rotateBy(180)}
+          rotation={rotationAngle}
+          onFlipH={toggleFlipH}
+          onFlipV={toggleFlipV}
+          onResetFlip={resetFlip}
+          flipH={flipH}
+          flipV={flipV}
+          showAdjustments={showAdjustments}
+          onToggleAdjustments={() => setShowAdjustments((s) => !s)}
+          brightness={brightness}
+          contrast={contrast}
+          gamma={gamma}
+          minimapVisible={minimapVisible}
+          onToggleMinimap={toggleMinimap}
+          trailVisible={trailVisible}
+          onToggleTrail={toggleTrail}
+          annotationsVisible={visible}
+          onToggleAnnotations={() => setVisible((v) => !v)}
+          onSaveViewpoint={saveBookmark}
+          showViewpoints={showViewpointsModal}
+          onToggleViewpoints={() => setShowViewpointsModal((m) => !m)}
+          onOpenRegistration={onOpenRegistration}
+          canRegister={Boolean(onOpenRegistration)}
+          fullscreen={fullscreen}
+          onToggleFullscreen={toggleFullscreen}
+          onOpenShortcuts={() => setShowShortcutsModal(true)}
+          drawMode={drawMode}
+          setDrawMode={setDrawMode}
+        />
         
-        <div className={`wsi-stage display-${displayProfile}`} data-brightness={brightness} data-contrast={contrast}>
+        <div
+          className={`wsi-stage display-${displayProfile} ${flipV ? 'flip-v-active' : ''}`}
+          data-brightness={brightness}
+          data-contrast={contrast}
+        >
           <div className={`wsi-viewer ${drawMode ? 'drawing-mode' : ''}`} ref={elementRef} aria-label={`Whole-slide viewer for ${slide.label}`} />
           
+          <ViewerTrail
+            visible={trailVisible}
+            boxes={coverageBoxes}
+            imageToViewport={imageToViewport}
+            onClear={clearCurrentTrail}
+          />
+
+          {showAdjustments && (
+            <ViewerDisplaySettings
+              brightness={brightness}
+              setBrightness={setBrightness}
+              contrast={contrast}
+              setContrast={setContrast}
+              gamma={gamma}
+              setGamma={setGamma}
+              displayProfile={displayProfile}
+              setDisplayProfile={setDisplayProfile}
+              profiles={DISPLAY_PROFILES}
+              onReset={() => {
+                setBrightness(100);
+                setContrast(100);
+                setGamma(1.0);
+                setDisplayProfile('standard');
+              }}
+              onSavePreferences={saveCurrentPreferences}
+              saving={prefSaving}
+              onClose={() => setShowAdjustments(false)}
+            />
+          )}
+
           <svg ref={svgOverlayRef} className={`annotation-svg-overlay ${drawMode ? 'drawing-active' : ''}`}>
              <defs>
                <marker id="arrowhead-draft" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
@@ -1009,14 +1229,6 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
           <label><span>Status</span><select value={annotationStatus} onChange={(event) => setAnnotationStatus(event.target.value)}><option>All</option>{annotationStatuses.map((status) => <option key={status}>{status}</option>)}</select></label>
           <small>{filteredAnnotations.length} of {annotations.length} human annotations visible</small>
         </section>
-        <section className="viewer-display-controls" aria-label="Display controls">
-          <div className="viewer-display-heading"><div><Layers size={16} /><h4>Display layers</h4></div><div className="viewer-display-actions"><button type="button" className="btn-control-secondary" onClick={autoBalanceDisplay}>Auto balance</button><button type="button" className="btn-control-secondary" onClick={resetDisplay}>Reset</button></div></div>
-          <label>Profile<select value={displayProfile} onChange={(event) => setDisplayProfile(event.target.value)}><optgroup label="Tonal"><option value="standard">Standard color</option><option value="grayscale">Grayscale</option><option value="inverted">Inverted</option><option value="high-contrast">High contrast</option><option value="low-saturation">Low saturation</option><option value="high-saturation">Enhanced saturation</option></optgroup><optgroup label="Source channels"><option value="red-channel">Red channel</option><option value="green-channel">Green channel</option><option value="blue-channel">Blue channel</option></optgroup><optgroup label="Experimental hue"><option value="hue-positive">Hue shift +90°</option><option value="hue-negative">Hue shift −90°</option></optgroup></select></label>
-          <label className="viewer-range-control"><span>Brightness <output>{brightness}%</output></span><input type="range" min="50" max="150" step="5" value={brightness} onChange={(event) => setBrightness(Number(event.target.value))} aria-label="Brightness percentage" /></label>
-          <label className="viewer-range-control"><span>Contrast <output>{contrast}%</output></span><input type="range" min="50" max="150" step="5" value={contrast} onChange={(event) => setContrast(Number(event.target.value))} aria-label="Contrast percentage" /></label>
-          <div className="viewer-profile-description"><strong>{activeProfile[0]}</strong><span>{activeProfile[1]}</span></div>
-          <p>Auto balance is a neutral viewing preset, not image analysis. Display-only aids do not modify the stored image and are not validated diagnostic transformations.</p>
-        </section>
         <section className="viewer-bookmarks" aria-label="Saved regions">
           <div className="annotation-panel-heading"><div><h3>Saved regions</h3><span>{bookmarks.length} items</span></div></div>
           {!bookmarks.length ? <p className="annotation-empty">No saved regions.</p> : bookmarks.map((bookmark) => <div className="viewer-bookmark" key={bookmark.id}><button type="button" onClick={() => openBookmark(bookmark)}>{bookmark.name}</button><button type="button" aria-label={`Delete ${bookmark.name}`} onClick={() => removeBookmark(bookmark)}><Trash2 size={13} /></button></div>)}
@@ -1069,6 +1281,20 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
       >
         <p className="confirmation-copy">Permanently delete <strong>{deleteTarget?.label}</strong>?</p>
       </Modal>
+
+      <ViewerBookmarksModal
+        open={showViewpointsModal}
+        onClose={() => setShowViewpointsModal(false)}
+        bookmarks={bookmarks}
+        onRestore={openBookmark}
+        onRename={renameBookmark}
+        onDelete={removeBookmark}
+      />
+
+      <ViewerShortcutsModal
+        open={showShortcutsModal}
+        onClose={() => setShowShortcutsModal(false)}
+      />
     </div>
   );
 }

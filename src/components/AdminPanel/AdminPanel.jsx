@@ -8,6 +8,18 @@ import { apiFetch } from '../../api';
 import { isAdministratorRole, isProtectedSuperAdmin, SUPER_ADMIN_ROLE, SYSTEM_ADMIN_ROLE, USER_ROLES } from '../../config/roles';
 import AISubscriptions from './AISubscriptions';
 
+const DEFAULT_PASSWORD_POLICY = { min_length: 8, require_letter_and_number: true };
+
+function passwordValidationMessage(value, policy) {
+  if (value.length < policy.min_length) return `Password must be at least ${policy.min_length} characters`;
+  if (policy.require_letter_and_number && (!/[A-Za-z]/.test(value) || !/\d/.test(value))) return 'Password must contain both letters and numbers';
+  return '';
+}
+
+function passwordPolicyHint(policy) {
+  return `At least ${policy.min_length} characters${policy.require_letter_and_number ? ', including letters and numbers' : ''}.`;
+}
+
 export default function AdminPanel({ API }) {
   const { user } = useAuth();
   const isSuperAdmin = user?.role === SUPER_ADMIN_ROLE || isProtectedSuperAdmin(user?.username);
@@ -20,6 +32,7 @@ export default function AdminPanel({ API }) {
   const [username, setUsername] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordPolicy, setPasswordPolicy] = useState(DEFAULT_PASSWORD_POLICY);
   const [role, setRole] = useState('Laboratory Manager');
   const [passwordResetUser, setPasswordResetUser] = useState(null);
   const [newPassword, setNewPassword] = useState('');
@@ -64,8 +77,30 @@ export default function AdminPanel({ API }) {
     return () => { mounted = false; };
   }, [API]);
 
+  useEffect(() => {
+    const controller = new AbortController();
+    apiFetch(`${API}/api/auth/password-policy`, { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) return;
+        const policy = await response.json();
+        if (Number.isInteger(policy?.min_length) && policy.min_length > 0) {
+          setPasswordPolicy({
+            min_length: policy.min_length,
+            require_letter_and_number: Boolean(policy.require_letter_and_number),
+          });
+        }
+      })
+      .catch((error) => { if (error.name !== 'AbortError') console.warn('Password policy could not be loaded.'); });
+    return () => controller.abort();
+  }, [API]);
+
   const handleCreateUser = async (e) => {
     e.preventDefault();
+    const passwordError = passwordValidationMessage(password, passwordPolicy);
+    if (passwordError) {
+      toast.error(passwordError);
+      return;
+    }
 
     try {
       const response = await apiFetch(`${API}/api/users`, {
@@ -158,8 +193,9 @@ export default function AdminPanel({ API }) {
 
   const handleResetPassword = async (event) => {
     event.preventDefault();
-    if (newPassword.length < 4) {
-      toast.error('Password must be at least 4 characters');
+    const passwordError = passwordValidationMessage(newPassword, passwordPolicy);
+    if (passwordError) {
+      toast.error(passwordError);
       return;
     }
 
@@ -219,7 +255,8 @@ export default function AdminPanel({ API }) {
             </div>
             <div className="form-group">
               <label htmlFor="new-password">Password</label>
-              <input id="new-password" type="password" autoComplete="new-password" required minLength={4} value={password} onChange={e => setPassword(e.target.value)} />
+              <input id="new-password" type="password" autoComplete="new-password" required minLength={passwordPolicy.min_length} value={password} onChange={e => setPassword(e.target.value)} />
+              <p className="password-policy-hint">{passwordPolicyHint(passwordPolicy)}</p>
             </div>
             <button type="submit" className="btn-primary">Create User</button>
           </form>
@@ -311,12 +348,13 @@ export default function AdminPanel({ API }) {
             name="new-password"
             type="password"
             autoComplete="new-password"
-            minLength={4}
+            minLength={passwordPolicy.min_length}
             required
             value={newPassword}
             onChange={(event) => setNewPassword(event.target.value)}
-            placeholder="Minimum 4 characters"
+            placeholder={passwordPolicyHint(passwordPolicy)}
           />
+          <p className="password-policy-hint">{passwordPolicyHint(passwordPolicy)}</p>
         </form>
       </Modal>
       <Modal

@@ -21,6 +21,7 @@ import PatientPicker from '../../components/PatientPicker/PatientPicker';
 import { patientService } from '../../services/patientService';
 import { platformService } from '../../services/platformService';
 import { caseService } from '../../services/caseService';
+import RegistrationWorkspace from '../registration/RegistrationWorkspace';
 
 function normalizeCase(item) {
   return {
@@ -89,6 +90,7 @@ export default function App() {
   const viewerRef3 = useRef(null);
   const viewerRef4 = useRef(null);
   const secondaryViewerRefs = useMemo(() => [viewerRef2, viewerRef3, viewerRef4], []);
+  const [showRegistrationWorkspace, setShowRegistrationWorkspace] = useState(false);
   
 
 
