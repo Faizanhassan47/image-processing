@@ -13,6 +13,8 @@ async function request(path, options = {}) {
 export const platformService = {
   health: (signal) => request('/health', { signal }),
   dashboardMetrics: (signal) => request('/dashboard/metrics', { signal }),
+  notifications: (unreadOnly = false, signal) => request(`/notifications?unread_only=${unreadOnly ? 'true' : 'false'}`, { signal }),
+  markNotificationRead: (notificationId) => request(`/notifications/${notificationId}/read`, { method: 'PATCH' }),
   searchCases: (params = {}, signal) => {
     const query = new URLSearchParams();
     Object.entries(params).forEach(([key, val]) => {

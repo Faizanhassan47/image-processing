@@ -1,0 +1,106 @@
+.advanced-viewer-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-subtle);
+  overflow-x: auto;
+  user-select: none;
+  font-family: var(--font-primary);
+  font-size: var(--font-size-sm);
+  z-index: 15;
+}
+
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.toolbar-group--right {
+  margin-left: auto;
+}
+
+.toolbar-separator {
+  width: 1px;
+  height: 20px;
+  background: var(--border-subtle);
+  margin: 0 var(--space-1);
+}
+
+.btn-toolbar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  height: 30px;
+  min-width: 30px;
+  padding: 0 var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+}
+
+.btn-toolbar:hover:not(:disabled) {
+  background: var(--surface-primary-soft);
+  color: var(--text-main);
+  border-color: var(--border-subtle);
+}
+
+.btn-toolbar:active:not(:disabled) {
+  transform: translateY(var(--active-press-offset));
+}
+
+.btn-toolbar--active {
+  background: var(--surface-primary-soft);
+  color: var(--primary);
+  border-color: var(--border-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.btn-toolbar--highlight {
+  color: var(--primary);
+}
+
+.btn-toolbar--accent {
+  background: var(--primary);
+  color: var(--text-on-primary);
+  border-color: var(--primary-dark);
+}
+
+.btn-toolbar--accent:hover:not(:disabled) {
+  background: var(--primary-hover);
+  color: var(--text-on-primary);
+}
+
+.toolbar-btn-text {
+  font-size: var(--font-size-xs);
+}
+
+.toolbar-badge {
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-left: 2px;
+}
+
+.toolbar-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--primary);
+  margin-left: 2px;
+}
+
+@media (max-width: 900px) {
+  .toolbar-btn-text {
+    display: none;
+  }
+}
