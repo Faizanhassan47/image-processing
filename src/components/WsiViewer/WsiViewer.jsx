@@ -69,7 +69,7 @@ function scaleLabel(microns) {
   return `${Number(microns.toPrecision(3))} µm`;
 }
 
-export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, externalViewerRef, onOpenRegistration }) {
+export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, externalViewerRef, onOpenRegistration, activePanel }) {
   const { user } = useAuth();
   const elementRef = useRef(null);
   const workspaceRef = useRef(null);
@@ -91,6 +91,10 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
   const [validation, setValidation] = useState(null);
   const [aiResults, setAiResults] = useState([]);
   const [aiVisible, setAiVisible] = useState(true);
+  const [inspectorTab, setInspectorTab] = useState('findings');
+  useEffect(() => {
+    if (activePanel === 'ai' || activePanel === 'findings') setInspectorTab(activePanel);
+  }, [activePanel]);
 
   // Advanced Viewer Display & Transformation States
   const [brightness, setBrightness] = useState(100);
@@ -113,9 +117,9 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
   const svgOverlayRef = useRef(null);
   const lastTileErrorToastTime = useRef(0);
   const trailDebounceTimer = useRef(null);
-  
+
   // For rendering SVG aligned with OpenSeadragon
-  const [, setViewState] = useState({ zoom: 1, pan: {x: 0, y: 0} });
+  const [, setViewState] = useState({ zoom: 1, pan: { x: 0, y: 0 } });
   const [draftGeometry, setDraftGeometry] = useState(null);
   const [hoveredAnnotation, setHoveredAnnotation] = useState(null);
   const [calibrationSaving, setCalibrationSaving] = useState(false);
@@ -246,7 +250,7 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
       imageLoaderLimit: 6,
     });
     viewerRef.current = viewer;
-    
+
     viewer.addHandler('open', () => { setViewerInstance(viewer); setViewerReady(true); setLoadFailure(''); });
     viewer.addHandler('open-failed', (event) => setLoadFailure(event.message || 'The slide descriptor could not be loaded.'));
     viewer.addHandler('tile-load-failed', (event) => {
@@ -256,7 +260,7 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
         setLoadFailure(`A high-resolution tile failed to load${event.message ? `: ${event.message}` : ''}`);
       }
     });
-    
+
     // Track viewport for SVG synchronization and viewing trail coverage
     const updateViewState = () => {
       if (!viewer.viewport) return;
@@ -264,7 +268,7 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
         zoom: viewer.viewport.getZoom(true),
         pan: viewer.viewport.getCenter(true)
       });
-      
+
       // Coarse grid viewport tracking for Viewing Trail
       const item = viewer.world?.getItemAt(0);
       if (item) {
@@ -283,11 +287,11 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
             const exists = prev.some((b) => Math.abs(b.x - gx) < gridW / 2 && Math.abs(b.y - gy) < gridH / 2);
             if (exists) return prev;
             const updated = [...prev, { x: gx, y: gy, w: gw, h: gh }].slice(-500);
-            
+
             // Debounced trail persistence
             if (trailDebounceTimer.current) clearTimeout(trailDebounceTimer.current);
             trailDebounceTimer.current = setTimeout(() => {
-              viewerService.saveTrail(slide.id, { coverage_boxes: updated }).catch(() => {});
+              viewerService.saveTrail(slide.id, { coverage_boxes: updated }).catch(() => { });
             }, 3000);
 
             return updated;
@@ -297,7 +301,7 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
     };
     viewer.addHandler('update-viewport', updateViewState);
     viewer.addHandler('animation', updateViewState);
-    
+
     return () => {
       setViewerReady(false);
       setViewerInstance(null);
@@ -341,7 +345,7 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
     const targetRefs = Array.isArray(syncedViewerRef) ? syncedViewerRef : [syncedViewerRef];
     if (!syncViews || !viewerReady || !viewerRef.current || !targetRefs.some((targetRef) => targetRef?.current)) return;
     const v1 = viewerRef.current;
-    
+
     const handler = () => {
       if (v1.isSyncing) return;
       const item1 = v1.world?.getItemAt(0);
@@ -378,7 +382,7 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
   // SVG coordinate conversions
   const imageToViewport = useCallback((x, y) => {
     const viewer = viewerInstance;
-    if (!viewer || !viewer.world.getItemAt(0)) return {x:0, y:0};
+    if (!viewer || !viewer.world.getItemAt(0)) return { x: 0, y: 0 };
     const vp = viewer.world.getItemAt(0).imageToViewportCoordinates(x, y);
     const pixel = viewer.viewport.pixelFromPoint(vp, true);
     return { x: pixel.x, y: pixel.y };
@@ -388,10 +392,10 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
     const viewer = viewerRef.current;
     const host = svgOverlayRef.current;
     if (!viewerReady || !viewer || !host) return undefined;
-    
+
     // Disable panning when drawing
     viewer.setMouseNavEnabled(!drawMode);
-    
+
     let drawingState = null; // internal state: { type, points, startPoint }
 
     const getImagePoint = (event) => {
@@ -411,7 +415,7 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
       event.stopPropagation();
       host.setPointerCapture?.(event.pointerId);
       setSelectedAnnotation(null);
-      
+
       const pt = getImagePoint(event);
       if (drawMode === 'point') {
         setDraft({ annotation_type: 'point', points: [[pt.x, pt.y]], label: '', note: '', color: '#e85d75', category: 'Pathologist', annotation_status: 'Active' });
@@ -435,7 +439,7 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
     const move = (event) => {
       if (!drawingState || !drawMode) return;
       const pt = getImagePoint(event);
-      
+
       if (drawMode === 'polygon') {
         setDraftGeometry({ ...drawingState, cursor: pt });
       } else if (drawMode === 'freehand') {
@@ -452,13 +456,13 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
       event.preventDefault();
       event.stopPropagation();
       host.releasePointerCapture?.(event.pointerId);
-      
+
       const pt = getImagePoint(event);
       if (drawMode !== 'freehand') drawingState.points[1] = pt;
-      
+
       // Complete rectangle or arrow
       const [p1, p2] = drawingState.points;
-      
+
       let finalGeom = null;
       if (drawMode === 'rectangle' || drawMode === 'ellipse') {
         const x = Math.min(p1.x, p2.x);
@@ -466,55 +470,55 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
         const w = Math.abs(p2.x - p1.x);
         const h = Math.abs(p2.y - p1.y);
         if (w >= 1 && h >= 1) {
-           finalGeom = { annotation_type: drawMode, x, y, width: w, height: h };
+          finalGeom = { annotation_type: drawMode, x, y, width: w, height: h };
         }
       } else if (drawMode === 'arrow' || drawMode === 'line') {
         const dx = Math.abs(p2.x - p1.x);
         const dy = Math.abs(p2.y - p1.y);
         if (dx >= 1 || dy >= 1) {
-           finalGeom = { annotation_type: drawMode, points: [[p1.x, p1.y], [p2.x, p2.y]] };
+          finalGeom = { annotation_type: drawMode, points: [[p1.x, p1.y], [p2.x, p2.y]] };
         }
       } else if (drawMode === 'freehand' && drawingState.points.length >= 2) {
         finalGeom = { annotation_type: 'freehand', points: drawingState.points.map((point) => [point.x, point.y]) };
       }
-      
+
       if (finalGeom) {
         setDraft({ ...finalGeom, label: '', note: '', color: '#e85d75', category: 'Pathologist', annotation_status: 'Active' });
         setDrawMode(null);
       }
-      
+
       drawingState = null;
       setDraftGeometry(null);
     };
-    
+
     const dblclick = (event) => {
-       if (drawMode === 'polygon' && drawingState && drawingState.points.length >= 3) {
-         event.preventDefault();
-         event.stopPropagation();
-         let pts = [...drawingState.points];
-         // A double-click will register an extra 'down' event immediately before the dblclick.
-         // If the last point is very close to the second-to-last, it's a double-click artifact.
-         if (pts.length >= 3) {
-             const last = pts[pts.length - 1];
-             const secondLast = pts[pts.length - 2];
-             // Compare in screen pixels to avoid zoom level issues
-             const viewer = viewerRef.current;
-             const vp1 = viewer.world.getItemAt(0).imageToViewportCoordinates(last.x, last.y);
-             const p1 = viewer.viewport.pixelFromPoint(vp1);
-             const vp2 = viewer.world.getItemAt(0).imageToViewportCoordinates(secondLast.x, secondLast.y);
-             const p2 = viewer.viewport.pixelFromPoint(vp2);
-             if (Math.hypot(p1.x - p2.x, p1.y - p2.y) < 5) {
-                 pts.pop();
-             }
-         }
-         const finalPts = pts.map(p => [p.x, p.y]);
-         setDraft({ annotation_type: 'polygon', points: finalPts, label: '', note: '', color: '#e85d75', category: 'Pathologist', annotation_status: 'Active' });
-         setDrawMode(null);
-         drawingState = null;
-         setDraftGeometry(null);
-       }
+      if (drawMode === 'polygon' && drawingState && drawingState.points.length >= 3) {
+        event.preventDefault();
+        event.stopPropagation();
+        let pts = [...drawingState.points];
+        // A double-click will register an extra 'down' event immediately before the dblclick.
+        // If the last point is very close to the second-to-last, it's a double-click artifact.
+        if (pts.length >= 3) {
+          const last = pts[pts.length - 1];
+          const secondLast = pts[pts.length - 2];
+          // Compare in screen pixels to avoid zoom level issues
+          const viewer = viewerRef.current;
+          const vp1 = viewer.world.getItemAt(0).imageToViewportCoordinates(last.x, last.y);
+          const p1 = viewer.viewport.pixelFromPoint(vp1);
+          const vp2 = viewer.world.getItemAt(0).imageToViewportCoordinates(secondLast.x, secondLast.y);
+          const p2 = viewer.viewport.pixelFromPoint(vp2);
+          if (Math.hypot(p1.x - p2.x, p1.y - p2.y) < 5) {
+            pts.pop();
+          }
+        }
+        const finalPts = pts.map(p => [p.x, p.y]);
+        setDraft({ annotation_type: 'polygon', points: finalPts, label: '', note: '', color: '#e85d75', category: 'Pathologist', annotation_status: 'Active' });
+        setDrawMode(null);
+        drawingState = null;
+        setDraftGeometry(null);
+      }
     };
-    
+
     const keydown = (e) => {
       if (e.key === 'Escape' && drawingState) {
         drawingState = null;
@@ -527,7 +531,7 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
     host.addEventListener('pointerup', up, true);
     host.addEventListener('dblclick', dblclick, true);
     document.addEventListener('keydown', keydown);
-    
+
     return () => {
       host.removeEventListener('pointerdown', down, true);
       host.removeEventListener('pointermove', move, true);
@@ -690,7 +694,7 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
       if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLSelectElement) return;
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z' && draft) { event.preventDefault(); setRedoDraft(draft); setDraft(null); return; }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'y' && redoDraft) { event.preventDefault(); setDraft(redoDraft); setRedoDraft(null); return; }
-      
+
       const panStep = 0.15; // Viewport fraction
       const panBy = (dx, dy) => {
         const viewport = viewerRef.current?.viewport;
@@ -749,19 +753,19 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
   const goTo = (annotation) => {
     const viewer = viewerRef.current;
     if (!viewer) return;
-    
+
     let rect;
     if (annotation.annotation_type === 'rectangle' && annotation.width) {
-       rect = new OpenSeadragon.Rect(annotation.x, annotation.y, annotation.width, annotation.height);
+      rect = new OpenSeadragon.Rect(annotation.x, annotation.y, annotation.width, annotation.height);
     } else if (annotation.points && Array.isArray(annotation.points) && annotation.points.length > 0) {
-       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-       annotation.points.forEach(([x, y]) => {
-         minX = Math.min(minX, x); minY = Math.min(minY, y);
-         maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
-       });
-       rect = new OpenSeadragon.Rect(minX, minY, maxX - minX, maxY - minY);
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      annotation.points.forEach(([x, y]) => {
+        minX = Math.min(minX, x); minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
+      });
+      rect = new OpenSeadragon.Rect(minX, minY, maxX - minX, maxY - minY);
     }
-    
+
     if (rect) {
       const item = viewer.world.getItemAt(0);
       const vpRect = item.imageToViewportRectangle(rect);
@@ -829,45 +833,45 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
 
   const renderShape = (geom, color, isDraft) => {
     if (geom.annotation_type === 'point' || geom.type === 'point') {
-       const point = isDraft ? geom.points[0] : { x: geom.points[0][0], y: geom.points[0][1] };
-       const pixel = imageToViewport(point.x, point.y);
-       return <circle cx={pixel.x} cy={pixel.y} r="6" fill={color} stroke="var(--text-inverse)" strokeWidth="2" />;
+      const point = isDraft ? geom.points[0] : { x: geom.points[0][0], y: geom.points[0][1] };
+      const pixel = imageToViewport(point.x, point.y);
+      return <circle cx={pixel.x} cy={pixel.y} r="6" fill={color} stroke="var(--text-inverse)" strokeWidth="2" />;
     } else if (['rectangle', 'ellipse'].includes(geom.annotation_type || geom.type)) {
-       let x, y, w, h;
-       if (isDraft) {
-          x = Math.min(geom.points[0].x, geom.points[1].x);
-          y = Math.min(geom.points[0].y, geom.points[1].y);
-          w = Math.abs(geom.points[1].x - geom.points[0].x);
-          h = Math.abs(geom.points[1].y - geom.points[0].y);
-       } else {
-          x = geom.x; y = geom.y; w = geom.width; h = geom.height;
-       }
-       const p1 = imageToViewport(x, y);
-       const p2 = imageToViewport(x + w, y + h);
-       if ((geom.annotation_type || geom.type) === 'ellipse') return <ellipse cx={(p1.x + p2.x) / 2} cy={(p1.y + p2.y) / 2} rx={Math.abs(p2.x - p1.x) / 2} ry={Math.abs(p2.y - p1.y) / 2} fill={`${color}33`} stroke={color} strokeWidth="2" />;
-       return <rect x={p1.x} y={p1.y} width={p2.x - p1.x} height={p2.y - p1.y} fill={`${color}33`} stroke={color} strokeWidth="2" />;
+      let x, y, w, h;
+      if (isDraft) {
+        x = Math.min(geom.points[0].x, geom.points[1].x);
+        y = Math.min(geom.points[0].y, geom.points[1].y);
+        w = Math.abs(geom.points[1].x - geom.points[0].x);
+        h = Math.abs(geom.points[1].y - geom.points[0].y);
+      } else {
+        x = geom.x; y = geom.y; w = geom.width; h = geom.height;
+      }
+      const p1 = imageToViewport(x, y);
+      const p2 = imageToViewport(x + w, y + h);
+      if ((geom.annotation_type || geom.type) === 'ellipse') return <ellipse cx={(p1.x + p2.x) / 2} cy={(p1.y + p2.y) / 2} rx={Math.abs(p2.x - p1.x) / 2} ry={Math.abs(p2.y - p1.y) / 2} fill={`${color}33`} stroke={color} strokeWidth="2" />;
+      return <rect x={p1.x} y={p1.y} width={p2.x - p1.x} height={p2.y - p1.y} fill={`${color}33`} stroke={color} strokeWidth="2" />;
     } else if (geom.annotation_type === 'polygon' || geom.type === 'polygon') {
-       let pts;
-       if (isDraft) {
-          pts = [...geom.points, geom.cursor].filter(Boolean).map(p => imageToViewport(p.x, p.y));
-       } else {
-          pts = geom.points.map(p => imageToViewport(p[0], p[1]));
-       }
-       const ptStr = pts.map(p => `${p.x},${p.y}`).join(' ');
-       return <polygon points={ptStr} fill={`${color}33`} stroke={color} strokeWidth="2" strokeDasharray={isDraft ? "5,5" : "none"} />;
+      let pts;
+      if (isDraft) {
+        pts = [...geom.points, geom.cursor].filter(Boolean).map(p => imageToViewport(p.x, p.y));
+      } else {
+        pts = geom.points.map(p => imageToViewport(p[0], p[1]));
+      }
+      const ptStr = pts.map(p => `${p.x},${p.y}`).join(' ');
+      return <polygon points={ptStr} fill={`${color}33`} stroke={color} strokeWidth="2" strokeDasharray={isDraft ? "5,5" : "none"} />;
     } else if (['line', 'freehand'].includes(geom.annotation_type || geom.type)) {
-       const pts = geom.points.map((point) => isDraft ? imageToViewport(point.x, point.y) : imageToViewport(point[0], point[1]));
-       return <polyline points={pts.map((point) => `${point.x},${point.y}`).join(' ')} fill="none" stroke={color} strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />;
+      const pts = geom.points.map((point) => isDraft ? imageToViewport(point.x, point.y) : imageToViewport(point[0], point[1]));
+      return <polyline points={pts.map((point) => `${point.x},${point.y}`).join(' ')} fill="none" stroke={color} strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />;
     } else if (geom.annotation_type === 'arrow' || geom.type === 'arrow') {
-       let p1, p2;
-       if (isDraft) {
-          p1 = imageToViewport(geom.points[0].x, geom.points[0].y);
-          p2 = imageToViewport(geom.points[1].x, geom.points[1].y);
-       } else {
-          p1 = imageToViewport(geom.points[0][0], geom.points[0][1]);
-          p2 = imageToViewport(geom.points[1][0], geom.points[1][1]);
-       }
-       return <line x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke={color} strokeWidth="3" markerEnd={`url(#arrowhead-${isDraft ? 'draft' : geom.id})`} />;
+      let p1, p2;
+      if (isDraft) {
+        p1 = imageToViewport(geom.points[0].x, geom.points[0].y);
+        p2 = imageToViewport(geom.points[1].x, geom.points[1].y);
+      } else {
+        p1 = imageToViewport(geom.points[0][0], geom.points[0][1]);
+        p2 = imageToViewport(geom.points[1][0], geom.points[1][1]);
+      }
+      return <line x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke={color} strokeWidth="3" markerEnd={`url(#arrowhead-${isDraft ? 'draft' : geom.id})`} />;
     }
   };
 
@@ -1009,14 +1013,14 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
           drawMode={drawMode}
           setDrawMode={setDrawMode}
         />
-        
+
         <div
           className={`wsi-stage display-${displayProfile} ${flipV ? 'flip-v-active' : ''}`}
           data-brightness={brightness}
           data-contrast={contrast}
         >
           <div className={`wsi-viewer ${drawMode ? 'drawing-mode' : ''}`} ref={elementRef} aria-label={`Whole-slide viewer for ${slide.label}`} />
-          
+
           <ViewerTrail
             visible={trailVisible}
             boxes={coverageBoxes}
@@ -1048,107 +1052,107 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
           )}
 
           <svg ref={svgOverlayRef} className={`annotation-svg-overlay ${drawMode ? 'drawing-active' : ''}`}>
-             <defs>
-               <marker id="arrowhead-draft" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-                 <polygon points="0 0, 10 3.5, 0 7" fill="#e85d75" />
-               </marker>
-               {visible && filteredAnnotations.map(a => (
-                 <marker key={`marker-${a.id}`} id={`arrowhead-${a.id}`} markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-                   <polygon points="0 0, 10 3.5, 0 7" fill={a.color} />
-                 </marker>
-               ))}
-             </defs>
-             {visible && filteredAnnotations.map((annotation) => (
-                <g
-                  key={annotation.id}
-                  className={`annotation-shape ${selectedAnnotation?.id === annotation.id ? 'annotation-shape--selected' : ''}`}
-                  onClick={() => selectAnnotation(annotation)}
-                  onPointerEnter={() => showAnnotationMeasurement({ ...annotation, measurementSource: 'Human annotation' })}
-                  onPointerLeave={() => setHoveredAnnotation(null)}
-                >
-                   <title>{annotation.label}</title>
-                   {renderShape(editing?.id === annotation.id ? editing : annotation, annotation.color, false)}
+            <defs>
+              <marker id="arrowhead-draft" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                <polygon points="0 0, 10 3.5, 0 7" fill="#e85d75" />
+              </marker>
+              {visible && filteredAnnotations.map(a => (
+                <marker key={`marker-${a.id}`} id={`arrowhead-${a.id}`} markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                  <polygon points="0 0, 10 3.5, 0 7" fill={a.color} />
+                </marker>
+              ))}
+            </defs>
+            {visible && filteredAnnotations.map((annotation) => (
+              <g
+                key={annotation.id}
+                className={`annotation-shape ${selectedAnnotation?.id === annotation.id ? 'annotation-shape--selected' : ''}`}
+                onClick={() => selectAnnotation(annotation)}
+                onPointerEnter={() => showAnnotationMeasurement({ ...annotation, measurementSource: 'Human annotation' })}
+                onPointerLeave={() => setHoveredAnnotation(null)}
+              >
+                <title>{annotation.label}</title>
+                {renderShape(editing?.id === annotation.id ? editing : annotation, annotation.color, false)}
+              </g>
+            ))}
+            {renderResizeHandles()}
+            {aiVisible && aiResults.map((result) => result.geometry && <g key={`ai-${result.id}`} className="ai-result-shape" onPointerEnter={() => showAnnotationMeasurement(aiMeasurementTarget(result))} onPointerLeave={() => setHoveredAnnotation(null)}><title>{`${result.model_name} ${result.model_version}${result.confidence == null ? '' : ` · ${(result.confidence * 100).toFixed(1)}%`}`}</title>{renderShape({ ...result.geometry, id: `ai-${result.id}` }, '#d39a3c', false)}</g>)}
+            {/* ── HoVer-Net nucleus contours ───────────────────────────────── */}
+            {/* ── HoVer-Net AI Analyzed ROI Boundary ─────────────────────── */}
+            {aiAnalysis?.roi && viewerReady && (() => {
+              const rx = aiAnalysis.roi.x ?? aiAnalysis.roi.roi_x;
+              const ry = aiAnalysis.roi.y ?? aiAnalysis.roi.roi_y;
+              const rw = aiAnalysis.roi.width ?? aiAnalysis.roi.roi_width ?? 256;
+              const rh = aiAnalysis.roi.height ?? aiAnalysis.roi.roi_height ?? 256;
+              if (rx == null || ry == null) return null;
+              const p1 = imageToViewport(rx, ry);
+              const p2 = imageToViewport(rx + rw, ry + rh);
+              const boxW = p2.x - p1.x;
+              const boxH = p2.y - p1.y;
+              return (
+                <g className="ai-roi-boundary">
+                  <rect
+                    x={p1.x}
+                    y={p1.y}
+                    width={boxW}
+                    height={boxH}
+                    fill="rgba(99, 102, 241, 0.08)"
+                    stroke="#6366f1"
+                    strokeWidth="2.5"
+                    strokeDasharray="6 4"
+                  />
+                  <g transform={`translate(${p1.x}, ${Math.max(16, p1.y - 6)})`}>
+                    <rect
+                      x="0"
+                      y="-14"
+                      width="150"
+                      height="18"
+                      rx="3"
+                      fill="#4f46e5"
+                    />
+                    <text
+                      x="6"
+                      y="-1"
+                      fill="#ffffff"
+                      fontSize="11"
+                      fontFamily="var(--font-sans, system-ui)"
+                      fontWeight="600"
+                    >
+                      AI Analyzed ROI (#{aiAnalysis.id})
+                    </text>
+                  </g>
                 </g>
-             ))}
-             {renderResizeHandles()}
-             {aiVisible && aiResults.map((result) => result.geometry && <g key={`ai-${result.id}`} className="ai-result-shape" onPointerEnter={() => showAnnotationMeasurement(aiMeasurementTarget(result))} onPointerLeave={() => setHoveredAnnotation(null)}><title>{`${result.model_name} ${result.model_version}${result.confidence == null ? '' : ` · ${(result.confidence * 100).toFixed(1)}%`}`}</title>{renderShape({ ...result.geometry, id: `ai-${result.id}` }, '#d39a3c', false)}</g>)}
-             {/* ── HoVer-Net nucleus contours ───────────────────────────────── */}
-             {/* ── HoVer-Net AI Analyzed ROI Boundary ─────────────────────── */}
-             {aiAnalysis?.roi && viewerReady && (() => {
-               const rx = aiAnalysis.roi.x ?? aiAnalysis.roi.roi_x;
-               const ry = aiAnalysis.roi.y ?? aiAnalysis.roi.roi_y;
-               const rw = aiAnalysis.roi.width ?? aiAnalysis.roi.roi_width ?? 256;
-               const rh = aiAnalysis.roi.height ?? aiAnalysis.roi.roi_height ?? 256;
-               if (rx == null || ry == null) return null;
-               const p1 = imageToViewport(rx, ry);
-               const p2 = imageToViewport(rx + rw, ry + rh);
-               const boxW = p2.x - p1.x;
-               const boxH = p2.y - p1.y;
-               return (
-                 <g className="ai-roi-boundary">
-                   <rect
-                     x={p1.x}
-                     y={p1.y}
-                     width={boxW}
-                     height={boxH}
-                     fill="rgba(99, 102, 241, 0.08)"
-                     stroke="#6366f1"
-                     strokeWidth="2.5"
-                     strokeDasharray="6 4"
-                   />
-                   <g transform={`translate(${p1.x}, ${Math.max(16, p1.y - 6)})`}>
-                     <rect
-                       x="0"
-                       y="-14"
-                       width="150"
-                       height="18"
-                       rx="3"
-                       fill="#4f46e5"
-                     />
-                     <text
-                       x="6"
-                       y="-1"
-                       fill="#ffffff"
-                       fontSize="11"
-                       fontFamily="var(--font-sans, system-ui)"
-                       fontWeight="600"
-                     >
-                       AI Analyzed ROI (#{aiAnalysis.id})
-                     </text>
-                   </g>
-                 </g>
-               );
-             })()}
-             {aiAnalysis?.nuclei && viewerReady && aiAnalysis.nuclei.map((nuc) => {
-               const cls = PANNUKE_CLASSES.find((c) => c.key === nuc.type) || { color: '#6366f1' };
-               if (aiHiddenClasses.has(nuc.type)) return null;
-               if (!nuc.contour || nuc.contour.length < 3) return null;
-               // contour points are [x, y] in level-0 image coords
-               const pixelPts = nuc.contour.map(([cx, cy]) => imageToViewport(cx, cy));
-               const ptStr = pixelPts.map((p) => `${p.x},${p.y}`).join(' ');
-               const isSelected = aiSelectedNucleus?.id === nuc.id;
-               return (
-                 <g
-                   key={`nuc-${nuc.id}`}
-                   className="ai-nucleus-contour"
-                   onPointerEnter={(e) => {
-                     const bounds = svgOverlayRef.current?.getBoundingClientRect();
-                     if (bounds) setNucleusTooltip({ x: e.clientX - bounds.left, y: e.clientY - bounds.top, nuc });
-                   }}
-                   onPointerLeave={() => setNucleusTooltip(null)}
-                   onClick={() => { setAiSelectedNucleus(nuc); setNucleusTooltip(null); }}
-                 >
-                   <polygon
-                     points={ptStr}
-                     fill={`${cls.color}22`}
-                     stroke={cls.color}
-                     strokeWidth={isSelected ? 2.5 : 1.5}
-                     strokeOpacity={isSelected ? 1 : 0.82}
-                   />
-                 </g>
-               );
-             })}
-             {draftGeometry && renderShape(draftGeometry, '#e85d75', true)}
+              );
+            })()}
+            {aiAnalysis?.nuclei && viewerReady && aiAnalysis.nuclei.map((nuc) => {
+              const cls = PANNUKE_CLASSES.find((c) => c.key === nuc.type) || { color: '#6366f1' };
+              if (aiHiddenClasses.has(nuc.type)) return null;
+              if (!nuc.contour || nuc.contour.length < 3) return null;
+              // contour points are [x, y] in level-0 image coords
+              const pixelPts = nuc.contour.map(([cx, cy]) => imageToViewport(cx, cy));
+              const ptStr = pixelPts.map((p) => `${p.x},${p.y}`).join(' ');
+              const isSelected = aiSelectedNucleus?.id === nuc.id;
+              return (
+                <g
+                  key={`nuc-${nuc.id}`}
+                  className="ai-nucleus-contour"
+                  onPointerEnter={(e) => {
+                    const bounds = svgOverlayRef.current?.getBoundingClientRect();
+                    if (bounds) setNucleusTooltip({ x: e.clientX - bounds.left, y: e.clientY - bounds.top, nuc });
+                  }}
+                  onPointerLeave={() => setNucleusTooltip(null)}
+                  onClick={() => { setAiSelectedNucleus(nuc); setNucleusTooltip(null); }}
+                >
+                  <polygon
+                    points={ptStr}
+                    fill={`${cls.color}22`}
+                    stroke={cls.color}
+                    strokeWidth={isSelected ? 2.5 : 1.5}
+                    strokeOpacity={isSelected ? 1 : 0.82}
+                  />
+                </g>
+              );
+            })}
+            {draftGeometry && renderShape(draftGeometry, '#e85d75', true)}
           </svg>
           {hoveredAnnotation && <div className="annotation-hover-measurement" role="tooltip">
             <header><strong>{hoveredAnnotation.label || 'Selected region'}</strong><span>{hoveredAnnotation.measurementSource}</span></header>
@@ -1178,13 +1182,16 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
             <span>{scaleBar.label}</span><svg width={scaleBar.width} height="8" aria-hidden="true"><path d={`M 1 1 V 7 M 1 6 H ${scaleBar.width - 1} M ${scaleBar.width - 1} 1 V 7`} /></svg>
           </div>}
         </div>
-        
+
         {!viewerReady && !loadFailure && <div className="viewer-loading"><span className="loading-spinner" /> Loading low-resolution preview and slide tiles…</div>}
         {loadFailure && <div className="viewer-load-error" role="alert"><strong>Slide loading degraded</strong><span>{loadFailure} Your annotations remain saved.</span><button type="button" className="btn-control-secondary" onClick={retrySlide}><RefreshCw size={15} /> Retry</button></div>}
         <div className="viewer-status-strip"><span>{magnification ? `${magnification}× source` : 'Magnification unavailable'}</span><span>{pixelSize ? `${pixelSize.toFixed(4)} µm/px calibrated` : 'Physical scale unavailable — pixel measurements only'}</span><span>{validation?.level_count || slide.level_count || 1} pyramid levels</span></div>
       </div>
 
-      <aside className="annotation-panel">
+      <aside className={`annotation-panel annotation-panel--${inspectorTab}`}>
+        <nav className="findings-tabs" aria-label="Viewer findings">{[['findings', 'Findings'], ['ai', 'AI insights']].map(([key, label]) => <button key={key} type="button" className={`findings-tab${inspectorTab === key ? ' findings-tab--active' : ''}`} onClick={() => setInspectorTab(key)}>{label}</button>)}</nav>
+
+        {inspectorTab === 'findings' && <section className="selected-findings"><div><strong>Selected findings ({annotations.length})</strong><button type="button" className="btn-control-secondary" onClick={() => setDrawMode('rectangle')}>＋ Add</button></div>{selectedAnnotation ? <><p><span className="finding-dot" />{selectedAnnotation.label || 'Selected region'}</p><dl className="finding-details"><div><dt>Type</dt><dd>{selectedAnnotation.category || selectedAnnotation.annotation_type || 'Annotation'}</dd></div><div><dt>Description</dt><dd>{selectedAnnotation.note || 'No description recorded.'}</dd></div><div><dt>Coordinates</dt><dd>{selectedAnnotation.x != null ? `${Math.round(selectedAnnotation.x)}, ${Math.round(selectedAnnotation.y)}` : 'Path region'}</dd></div>{selectedAnnotation.width && <div><dt>Size</dt><dd>{Math.round(selectedAnnotation.width)} × {Math.round(selectedAnnotation.height)} px</dd></div>}</dl></> : <small>Select an annotation or draw a region to add a finding.</small>}</section>}
         {!calibration?.available && <section className="viewer-calibration" aria-label="Physical calibration">
           <div><h3>Physical size calibration</h3><p>Required to display actual tumor size.</p></div>
           {canCalibrate ? <form onSubmit={saveCalibration}>
@@ -1224,7 +1231,8 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
         </section>
         {aiResults.length > 0 && <section className="viewer-ai-results" aria-label="AI evidence"><div className="annotation-panel-heading"><div><h3>AI evidence</h3><span>{aiResults.length} results</span></div><button type="button" className="btn-control-secondary" onClick={() => setAiVisible((value) => !value)}>{aiVisible ? 'Hide' : 'Show'}</button></div>{aiResults.map((result) => <div className="viewer-ai-result" key={result.id}><strong>{result.model_name} {result.model_version}</strong><span>{result.result_type} · {result.confidence == null ? 'No confidence' : `${(result.confidence * 100).toFixed(1)}% confidence`}</span>{result.limitations && <small>{result.limitations}</small>}</div>)}</section>}
         {/* ── HoVer-Net AI Analysis Panel ─────────────────────────────── */}
-        <AiAnalysisPanel
+        {selectedAnnotation && <section className="quantitative-analysis"><h3>Quantitative analysis</h3><div className="quantitative-analysis__grid"><div><span>Region width</span><strong>{Math.round(selectedAnnotation.width || 0)} px</strong></div><div><span>Region height</span><strong>{Math.round(selectedAnnotation.height || 0)} px</strong></div><div><span>Status</span><strong>{selectedAnnotation.annotation_status || 'Active'}</strong></div></div></section>}
+        {inspectorTab === 'ai' && <AiAnalysisPanel
           slide={slide}
           roiRect={roiRect}
           hiddenClasses={aiHiddenClasses}
@@ -1243,7 +1251,7 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
           }}
           onPanToRoi={panToRoi}
           onError={onError}
-        />
+        />}
         {draft && <AnnotationForm title="New annotation" values={draft} calibration={calibration} onSubmit={saveNew} onCancel={() => setDraft(null)} saving={saving} />}
         {editing && <AnnotationForm title="Edit annotation" values={editing} calibration={calibration} onSubmit={saveEdit} onCancel={() => setEditing(null)} saving={saving} />}
         {annotationsLoading ? <p className="annotation-empty">Loading annotations…</p> : !annotations.length ?
