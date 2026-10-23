@@ -5,12 +5,24 @@ import { API_BASE_URL as API } from '../../config';
 import { apiFetch } from '../../api';
 import useUnsavedChanges from '../../hooks/useUnsavedChanges';
 import Modal from '../Modal/Modal';
+import { reportService } from '../../services/reportService';
 
 function Field({ label, children }) {
   return <label className="field-group"><span className="field-label">{label}</span>{children}</label>;
 }
 
-export default function ReportEditor({ selectedCase, selectSlide, setMessage }) {
+const SURGICAL_PATHOLOGY_TEMPLATE = {
+  name: 'Surgical Pathology Report',
+  sections: {
+    specimen_clinical: 'Clinical history / specimen submitted',
+    gross_description: 'Gross description',
+    microscopic_findings: 'Microscopic description',
+    diagnosis: 'Final diagnosis',
+    comments: 'Special studies, AI-assisted review summary, comments and recommendations',
+  },
+};
+
+export default function ReportEditor({ selectedCase, selectSlide, setMessage, onReportFinalized }) {
   const [isDirty, setIsDirty] = useState(false);
   const [reports, setReports] = useState([]);
   const [currentDraft, setCurrentDraft] = useState(null);
@@ -18,23 +30,10 @@ export default function ReportEditor({ selectedCase, selectSlide, setMessage }) 
   const [activeTab, setActiveTab] = useState('edit');
   const [confirmFinalize, setConfirmFinalize] = useState(false);
   const [annotationsBySlide, setAnnotationsBySlide] = useState({});
-  const [templates, setTemplates] = useState([]);
-  const [selectedTemplateId, setSelectedTemplateId] = useState('');
+  const [templateVersion, setTemplateVersion] = useState(0);
+  const [aiDraftVersion, setAiDraftVersion] = useState(0);
+  const [isGeneratingAiDraft, setIsGeneratingAiDraft] = useState(false);
   useUnsavedChanges(isDirty);
-
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      try {
-        const response = await apiFetch(`${API}/api/platform/report-templates`);
-        if (response.ok && active) {
-          const list = await response.json();
-          setTemplates(list);
-        }
-      } catch { /* Report templates are optional */ }
-    })();
-    return () => { active = false; };
-  }, []);
 
   const fetchReports = useCallback(async () => {
     if (!selectedCase) return;
@@ -69,22 +68,34 @@ export default function ReportEditor({ selectedCase, selectSlide, setMessage }) 
     return () => { mounted = false; };
   }, [selectedCase, setMessage]);
 
-  const applyTemplate = (templateId) => {
-    setSelectedTemplateId(templateId);
-    if (!templateId || !currentDraft) return;
-    const tmpl = templates.find((t) => String(t.id) === String(templateId));
-    if (!tmpl) return;
+  const applyTemplate = () => {
+    if (!currentDraft) return;
+    setCurrentDraft((draft) => ({
+      ...draft,
+      ...Object.fromEntries(Object.entries(SURGICAL_PATHOLOGY_TEMPLATE.sections).map(([field, heading]) => [field, draft[field] || `[${heading.toUpperCase()}]\n`])),
+    }));
+    setTemplateVersion((current) => current + 1);
+    setIsDirty(true);
+    setMessage({ text: `${SURGICAL_PATHOLOGY_TEMPLATE.name} applied.`, type: 'success' });
+  };
+
+  const insertAiMicroscopicDraft = async () => {
+    if (!currentDraft || isGeneratingAiDraft) return;
+    setIsGeneratingAiDraft(true);
     try {
-      const sections = typeof tmpl.sections_json === 'string' ? JSON.parse(tmpl.sections_json) : (tmpl.sections || []);
-      const formattedNotes = sections.map((sec) => `[${sec.toUpperCase()}]\n- \n`).join('\n');
-      setCurrentDraft((draft) => ({
-        ...draft,
-        microscopic_findings: draft.microscopic_findings ? `${draft.microscopic_findings}\n\n${formattedNotes}` : formattedNotes,
-      }));
+      const result = await reportService.aiMicroscopicDraft(selectedCase.id);
+      setCurrentDraft((draft) => {
+        const current = (draft.microscopic_findings || '').trim();
+        const isTemplatePrompt = /^\[[^\]]+\]$/.test(current);
+        return { ...draft, microscopic_findings: !current || isTemplatePrompt ? result.microscopic_findings : `${current}\n\n${result.microscopic_findings}` };
+      });
+      setAiDraftVersion((current) => current + 1);
       setIsDirty(true);
-      setMessage({ text: `Applied template: ${tmpl.name}`, type: 'success' });
-    } catch {
-      // Ignored
+      setMessage({ text: `AI-assisted draft added from ${result.result_count} completed result${result.result_count === 1 ? '' : 's'}. Review before finalizing.`, type: 'success' });
+    } catch (error) {
+      setMessage({ text: error.message, type: 'error' });
+    } finally {
+      setIsGeneratingAiDraft(false);
     }
   };
 
@@ -148,11 +159,20 @@ export default function ReportEditor({ selectedCase, selectSlide, setMessage }) 
   };
 
   const updateFindingSlide = (index, slideId) => {
-    setCurrentDraft((draft) => ({ ...draft, findings: draft.findings.map((finding, itemIndex) => itemIndex === index
-      ? { ...finding, slide_id: slideId ? Number(slideId) : '', annotation_id: '' } : finding) }));
+    setCurrentDraft((draft) => ({
+      ...draft, findings: draft.findings.map((finding, itemIndex) => itemIndex === index
+        ? { ...finding, slide_id: slideId ? Number(slideId) : '', annotation_id: '' } : finding)
+    }));
     setIsDirty(true);
     loadAnnotations(slideId);
   };
+
+  useEffect(() => {
+    const report = reports.find((item) => item.status === 'Finalized') || currentDraft;
+    report?.findings?.forEach((finding) => {
+      if (finding.slide_id) loadAnnotations(finding.slide_id);
+    });
+  }, [currentDraft, reports]);
 
   const finalizeReport = async () => {
     if (!currentDraft || busy) return;
@@ -161,6 +181,7 @@ export default function ReportEditor({ selectedCase, selectSlide, setMessage }) 
       const response = await apiFetch(`${API}/api/reports/${currentDraft.id}/finalize`, { method: 'POST' });
       if (!response.ok) throw new Error((await response.json()).detail || 'Could not finalize report');
       await fetchReports();
+      await onReportFinalized?.();
       setIsDirty(false);
       setActiveTab('versions');
       setConfirmFinalize(false);
@@ -183,20 +204,15 @@ export default function ReportEditor({ selectedCase, selectSlide, setMessage }) 
         disabled={tab !== 'versions' && !activeReport}>{tab[0].toUpperCase() + tab.slice(1)}</button>)}
     </div>
 
-    {activeTab === 'edit' && currentDraft && <form className="report-form" onSubmit={handleUpdate} onChange={() => setIsDirty(true)}>
-      {templates.length > 0 && <div className="report-template-bar">
-        <label className="field-group">
-          <span className="field-label">Load Structured Template</span>
-          <select value={selectedTemplateId} onChange={(e) => applyTemplate(e.target.value)} aria-label="Select report template">
-            <option value="">Select a template to insert sections...</option>
-            {templates.map((tmpl) => <option key={tmpl.id} value={tmpl.id}>{tmpl.name}</option>)}
-          </select>
-        </label>
-      </div>}
+    {activeTab === 'edit' && currentDraft && <form key={`${currentDraft.id}-${templateVersion}-${aiDraftVersion}`} className="report-form" onSubmit={handleUpdate} onChange={() => setIsDirty(true)}>
+      <div className="report-template-bar">
+        <div><span className="field-label">Report template</span><strong>{SURGICAL_PATHOLOGY_TEMPLATE.name}</strong><p>Standard structured template for clinical pathology reports.</p></div>
+        <button type="button" className="btn-control-secondary" onClick={applyTemplate}>Apply template</button>
+      </div>
       <div className="report-field-grid">
         <Field label="Specimen and clinical details"><textarea name="specimen_clinical" defaultValue={currentDraft.specimen_clinical} rows={3} /></Field>
         <Field label="Gross description"><textarea name="gross_description" defaultValue={currentDraft.gross_description} rows={3} /></Field>
-        <Field label="Microscopic findings"><textarea name="microscopic_findings" defaultValue={currentDraft.microscopic_findings} rows={4} /></Field>
+        <Field label={<span className="report-field-label-row">Microscopic findings <button type="button" className="btn-control-secondary" onClick={insertAiMicroscopicDraft} disabled={isGeneratingAiDraft}>{isGeneratingAiDraft ? 'Generating AI draft…' : 'Add AI draft'}</button></span>}><textarea name="microscopic_findings" defaultValue={currentDraft.microscopic_findings} rows={4} /></Field>
         <Field label="Diagnosis"><textarea name="diagnosis" defaultValue={currentDraft.diagnosis} rows={4} /></Field>
       </div>
       <Field label="Comments"><textarea name="comments" defaultValue={currentDraft.comments} rows={2} /></Field>
@@ -225,10 +241,29 @@ export default function ReportEditor({ selectedCase, selectSlide, setMessage }) 
 
     {activeTab === 'edit' && !currentDraft && <div className="report-empty-state"><FileText size={28} /><h4>No draft report</h4><p>Create a draft to begin documenting this case.</p></div>}
 
-    {activeTab === 'preview' && activeReport && <article className="report-preview">
+    {activeTab === 'preview' && activeReport && <article className="report-preview report-preview--surgical">
       <header><p>Digital Pathology</p><h2>Pathology report</h2><span>Case {selectedCase.case_id} · Version {activeReport.version} · {activeReport.status}</span></header>
-      {[['Specimen and clinical details', activeReport.specimen_clinical], ['Gross description', activeReport.gross_description], ['Microscopic findings', activeReport.microscopic_findings], ['Diagnosis', activeReport.diagnosis], ['Comments', activeReport.comments]].map(([title, value]) => value && <section key={title}><h3>{title}</h3><p>{value}</p></section>)}
-      {!!activeReport.findings.length && <section><h3>Linked findings</h3><ol>{activeReport.findings.map((finding, index) => <li key={finding.id || index}>{finding.text}{finding.slide_id && <button type="button" className="text-action" onClick={() => { const slide = selectedCase.slides.find((item) => item.id === finding.slide_id); if (slide) selectSlide(slide); }}>Open supporting slide</button>}</li>)}</ol></section>}
+      <div className="surgical-preview-header">
+        <div className="surgical-preview-brand"><span>Digital Pathology Laboratory</span></div>
+        <div className="surgical-preview-title"><h2>Surgical Pathology Report</h2><span>Precision Pathology | Digital Intelligence | Better Care</span></div>
+        <dl><div><dt>Report No.</dt><dd>REP-{String(activeReport.id).padStart(6, '0')}</dd></div><div><dt>Case No.</dt><dd>{selectedCase.case_id}</dd></div><div><dt>Report Date</dt><dd>{activeReport.finalized_at || activeReport.created_at || 'Not recorded'}</dd></div><div><dt>Status</dt><dd>{activeReport.status}</dd></div></dl>
+      </div>
+      <section className="report-patient-case"><h3>Patient / Case Information</h3><dl><div><dt>Patient name</dt><dd>{activeReport.patient_name || selectedCase.patient_name || activeReport.patient_identifier || selectedCase.patient_identifier || selectedCase.patient_id || 'Not recorded'}</dd></div><div><dt>Specimen type</dt><dd>{selectedCase.specimen_type || selectedCase.description || 'Not recorded'}</dd></div><div><dt>Accession / case no.</dt><dd>{selectedCase.case_id}</dd></div><div><dt>Pathologist</dt><dd>{activeReport.reviewer_name || selectedCase.reviewer || 'Not assigned'}</dd></div></dl></section>
+      {[['Clinical History / Specimen Submitted', activeReport.specimen_clinical], ['Gross Description', activeReport.gross_description], ['Microscopic Description', activeReport.microscopic_findings], ['Final Diagnosis', activeReport.diagnosis], ['Special Studies / IHC / Biomarkers', activeReport.comments]].map(([title, value]) => <section key={title} className={title === 'Final Diagnosis' ? 'report-preview__diagnosis' : ''}><h3>{title}</h3><p>{value || 'Not recorded.'}</p></section>)}
+      <section className="report-preview__ai"><h3>AI-Assisted Review Summary</h3><p>AI findings are supportive and require pathologist review and clinical correlation.</p></section>
+      {!!activeReport.findings.length && <section><h3>Linked findings</h3><div className="report-finding-list">{activeReport.findings.map((finding, index) => {
+        const slide = selectedCase.slides.find((item) => item.id === finding.slide_id);
+        const annotation = (annotationsBySlide[finding.slide_id] || []).find((item) => item.id === finding.annotation_id);
+        const annotationLabel = finding.annotation_label || annotation?.label || (finding.annotation_id ? `Annotation ${finding.annotation_id}` : 'Slide reference');
+        const annotationSource = finding.annotation_source_type || annotation?.source_type || '';
+        return <article className="report-finding-card" key={finding.id || index}>
+          {finding.annotation_id && <div className="report-finding-visual">
+            {slide?.image_url || slide?.thumbnail_url ? <img src={slide.image_url || slide.thumbnail_url} alt={`Supporting image for ${annotationLabel}`} /> : <div className="report-finding-image-empty">Image unavailable</div>}
+            <span className="report-finding-label">{annotationLabel}</span>
+          </div>}
+          <div className="report-finding-content"><strong>Finding {index + 1}</strong>{annotationSource && <span className="report-finding-source">{annotationSource}</span>}<p>{finding.text || 'No description recorded.'}</p>{slide && <button type="button" className="text-action" onClick={() => selectSlide(slide)}>Open supporting slide</button>}</div>
+        </article>;
+      })}</div></section>}
       <footer><span>Reviewer: {activeReport.reviewer_name || 'Not assigned'}</span><button type="button" className="btn-primary" onClick={() => window.location.assign(`${API}/api/reports/${activeReport.id}/pdf`)}><Download size={16} /> Download PDF</button></footer>
     </article>}
 

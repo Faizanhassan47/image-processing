@@ -11,6 +11,9 @@ import { Link } from "react-router-dom";
 import { caseService } from "../../services/caseService";
 import { platformService } from "../../services/platformService";
 import Modal from "../../components/Modal/Modal";
+import { notifyClinicalDataChanged, subscribeToClinicalDataChanges } from "../../services/clinicalDataEvents";
+import { isIntakeRole } from "../../config/roles";
+import { useAuth } from "../auth/AuthProvider";
 import "./SlideLibrary.css";
 
 const slideStatus = (caseItem) =>
@@ -45,6 +48,7 @@ function formatDate(value) {
 }
 
 export default function SlideLibrary() {
+  const { user } = useAuth();
   const [cases, setCases] = useState([]);
   const [query, setQuery] = useState("");
   const [format, setFormat] = useState("All");
@@ -54,12 +58,14 @@ export default function SlideLibrary() {
   const [slidePendingRemoval, setSlidePendingRemoval] = useState(null);
 
   useEffect(() => {
-    const controller = new AbortController();
-    caseService
-      .list(controller.signal)
-      .then((items) => setCases(Array.isArray(items) ? items : []))
+    const loadCases = (signal) => caseService
+      .list(signal)
+      .then((items) => setCases(Array.isArray(items) ? items : items.items || []))
       .catch((err) => err.name !== "AbortError" && setError(err.message));
-    return () => controller.abort();
+    const controller = new AbortController();
+    loadCases(controller.signal);
+    const unsubscribe = subscribeToClinicalDataChanges(() => loadCases());
+    return () => { controller.abort(); unsubscribe(); };
   }, []);
 
   const slides = useMemo(
@@ -85,9 +91,10 @@ export default function SlideLibrary() {
     );
   });
   const active = selected || filtered[0] || null;
+  const canRemoveSlides = isIntakeRole(user?.role);
   const removeSlide = async () => {
     const target = slidePendingRemoval;
-    if (!target || removing) return;
+    if (!canRemoveSlides || !target || removing) return;
     if (
       false &&
       !window.confirm(
@@ -114,6 +121,7 @@ export default function SlideLibrary() {
       );
       setSelected(null);
       setSlidePendingRemoval(null);
+      notifyClinicalDataChanged({ type: "slide-deleted", slideId: target.id, caseId: target.caseId });
     } catch (err) {
       setError(err.message || "Unable to remove slide.");
     } finally {
@@ -235,7 +243,7 @@ export default function SlideLibrary() {
                 <Eye size={16} />
                 Open in viewer
               </Link>
-              <button
+              {canRemoveSlides && <button
                 type="button"
                 className="slide-details__remove"
                 onClick={() => setSlidePendingRemoval(active)}
@@ -243,7 +251,7 @@ export default function SlideLibrary() {
               >
                 <Trash2 size={15} />
                 {removing ? "Removing…" : "Remove slide"}
-              </button>
+              </button>}
               <section
                 className="slide-details__metadata"
                 aria-labelledby="slide-metadata-title"
@@ -328,7 +336,7 @@ export default function SlideLibrary() {
         </aside>
       </div>
       <Modal
-        open={Boolean(slidePendingRemoval)}
+        open={canRemoveSlides && Boolean(slidePendingRemoval)}
         title="Remove slide"
         onClose={() => !removing && setSlidePendingRemoval(null)}
         footer={

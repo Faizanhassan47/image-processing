@@ -19,6 +19,7 @@ const emptyData = {
   compatibility: [],
   backups: [],
   metrics: null,
+  workQueue: { unassigned_cases: [], rescan_slides: [], reconciliation_items: [] },
 };
 
 function Status({ value }) {
@@ -51,9 +52,10 @@ export default function PlatformOperations() {
   const load = useCallback(async (signal) => {
     setLoading(true);
     try {
-      const [nextHealth, metrics, ingestion, reconciliation, models, jobs, hl7, compatibility, backups] = await Promise.all([
+      const [nextHealth, metrics, workQueue, ingestion, reconciliation, models, jobs, hl7, compatibility, backups] = await Promise.all([
         platformService.health(signal).catch(() => null),
         platformService.dashboardMetrics(signal).catch(() => null),
+        platformService.workQueue(signal).catch(() => ({ unassigned_cases: [], rescan_slides: [], reconciliation_items: [] })),
         platformService.ingestionJobs(signal).catch(() => []),
         platformService.reconciliationItems(signal).catch(() => []),
         platformService.aiModels(signal).catch(() => []),
@@ -72,6 +74,7 @@ export default function PlatformOperations() {
         compatibility: compatibility || [],
         backups: backups || [],
         metrics,
+        workQueue: workQueue || { unassigned_cases: [], rescan_slides: [], reconciliation_items: [] },
       });
     } catch (error) {
       if (error.name !== 'AbortError') toast.error(error.message);
@@ -323,8 +326,35 @@ export default function PlatformOperations() {
               </div>
             </div>
 
-            {data.reconciliation.length > 0 && (
-              <div style={{ marginTop: 'var(--spacing-md)' }}>
+            <div className="ops-queue-sections">
+              <section className="ops-queue-section">
+                <header><div><h3>Cases requiring pathologist assignment</h3><p>Live cases that do not yet have a named pathologist.</p></div></header>
+                <div className="ops-table-wrap">
+                  <table>
+                    <thead><tr><th>Case</th><th>Description</th><th>Status</th><th>Priority</th><th>Created</th></tr></thead>
+                    <tbody>
+                      {data.workQueue.unassigned_cases.map((item) => <tr key={item.id}><td><Link to={`/cases?case=${item.id}`}>{item.case_id}</Link></td><td>{item.description || 'No description'}</td><td><Status value={item.status} /></td><td>{item.priority || 'Routine'}</td><td>{item.created_at ? new Date(item.created_at).toLocaleString() : '—'}</td></tr>)}
+                      {!data.workQueue.unassigned_cases.length && <tr><td colSpan="5" className="ops-empty">No unassigned cases.</td></tr>}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+
+              <section className="ops-queue-section">
+                <header><div><h3>Slides needing rescan</h3><p>QC-rejected slides requiring technician action.</p></div></header>
+                <div className="ops-table-wrap">
+                  <table>
+                    <thead><tr><th>Slide</th><th>Case</th><th>Stain</th><th>QC note</th></tr></thead>
+                    <tbody>
+                      {data.workQueue.rescan_slides.map((item) => <tr key={item.id}><td>{item.label}</td><td><Link to={`/cases?case=${item.case_pk}&slide=${item.id}`}>{item.case_id}</Link></td><td>{item.stain || '—'}</td><td>{item.qc_note || 'No note'}</td></tr>)}
+                      {!data.workQueue.rescan_slides.length && <tr><td colSpan="4" className="ops-empty">No slides require rescan.</td></tr>}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+
+              {data.workQueue.reconciliation_items.length > 0 && (
+              <section className="ops-queue-section">
                 <header>
                   <div>
                     <h3>Unreconciled Slide Queue</h3>
@@ -342,7 +372,7 @@ export default function PlatformOperations() {
                       </tr>
                     </thead>
                     <tbody>
-                      {data.reconciliation.map((rec) => (
+                      {data.workQueue.reconciliation_items.map((rec) => (
                         <tr key={rec.id}>
                           <td>#{rec.id}</td>
                           <td><strong>{rec.proposed_case_id || 'Unknown'}</strong></td>
@@ -362,8 +392,9 @@ export default function PlatformOperations() {
                     </tbody>
                   </table>
                 </div>
-              </div>
-            )}
+              </section>
+              )}
+            </div>
           </section>
         </div>
       )}

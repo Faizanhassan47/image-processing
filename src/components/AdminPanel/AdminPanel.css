@@ -345,6 +345,42 @@
   box-shadow: 0 0 0 var(--focus-ring-width) var(--primary-glow);
 }
 
+.reset-password-form__field {
+  position: relative;
+}
+
+.reset-password-form__field input {
+  padding-right: calc(var(--space-4) + 32px);
+}
+
+.reset-password-form__visibility-toggle {
+  position: absolute;
+  top: 50%;
+  right: var(--space-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  color: var(--text-muted);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.reset-password-form__visibility-toggle:hover {
+  color: var(--primary);
+  background: var(--primary-subtle);
+}
+
+.reset-password-form__visibility-toggle:focus-visible {
+  outline: var(--focus-ring-width) solid var(--primary);
+  outline-offset: 1px;
+}
+
 .reset-password-form .reset-password-form__account {
   position: absolute;
   width: 1px;

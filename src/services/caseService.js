@@ -9,6 +9,21 @@ async function request(path, options = {}) {
 }
 
 export const caseService = {
-  list: (signal) => request('/api/cases', { signal }),
+  list: (paramsOrSignal = {}, optionalSignal) => {
+    const signal = paramsOrSignal?.aborted !== undefined ? paramsOrSignal : optionalSignal;
+    const params = paramsOrSignal?.aborted !== undefined ? {} : paramsOrSignal;
+    const query = new URLSearchParams();
+    Object.entries(params || {}).forEach(([key, value]) => {
+      if (value !== null && value !== undefined && value !== '') query.set(key, value);
+    });
+    const suffix = query.size ? `?${query.toString()}` : '';
+    return request(`/api/cases${suffix}`, { signal });
+  },
   reviewers: (signal) => request('/api/reviewers', { signal }),
+  updateStatus: (caseId, status, signal) => request(`/api/cases/${caseId}/status`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status }),
+    signal,
+  }),
 };

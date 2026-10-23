@@ -310,6 +310,20 @@
   font-weight: 600;
 }
 
+.ops-queue-sections {
+  display: grid;
+  gap: var(--spacing-lg);
+  margin-top: var(--spacing-lg);
+}
+
+.ops-queue-section {
+  min-width: 0;
+}
+
+.ops-queue-section > header {
+  margin-bottom: var(--spacing-sm);
+}
+
 /* Telemetry & Progress Bars */
 .ops-telemetry-body {
   display: flex;

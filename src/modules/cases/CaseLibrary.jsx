@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
-import { ClipboardList, Eye, Search, SlidersHorizontal, Trash2, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { ClipboardList, Eye, LayoutList, Search, SlidersHorizontal, Table2, Trash2, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { caseService } from '../../services/caseService';
 import { platformService } from '../../services/platformService';
 import Modal from '../../components/Modal/Modal';
 import { useAuth } from '../auth/AuthProvider';
 import { isAdministratorRole } from '../../config/roles';
+import { notifyClinicalDataChanged } from '../../services/clinicalDataEvents';
+import Pagination from '../../components/Pagination/Pagination';
 import './CaseLibrary.css';
 
 function formatDate(value) {
@@ -22,26 +24,50 @@ export default function CaseLibrary() {
   const { user } = useAuth();
   const [cases, setCases] = useState([]);
   const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [status, setStatus] = useState('All');
+  const [assignedToMe, setAssignedToMe] = useState(false);
+  const [sort, setSort] = useState('created_at:desc');
+  const [view, setView] = useState('cards');
+  const [page, setPage] = useState(0);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
   const [error, setError] = useState('');
   const [casePendingRemoval, setCasePendingRemoval] = useState(null);
   const [removing, setRemoving] = useState(false);
 
+  const pageSize = 25;
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setDebouncedQuery(query.trim()), 250);
+    return () => window.clearTimeout(timeout);
+  }, [query]);
+
   useEffect(() => {
     const controller = new AbortController();
-    caseService.list(controller.signal)
-      .then((items) => setCases(Array.isArray(items) ? items : []))
-      .catch((err) => { if (err.name !== 'AbortError') setError(err.message || 'Unable to load cases.'); });
+    setLoading(true);
+    setError('');
+    const [sort_by, sort_direction] = sort.split(':');
+    caseService.list({ search: debouncedQuery, status: status === 'All' ? null : status, assigned_to_me: assignedToMe || null, sort_by, sort_direction, limit: pageSize, offset: page * pageSize }, controller.signal)
+      .then((data) => {
+        setCases(Array.isArray(data) ? data : data.items || []);
+        setTotal(Array.isArray(data) ? data.length : data.total || 0);
+      })
+      .catch((err) => { if (err.name !== 'AbortError') setError(err.message || 'Unable to load cases.'); })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, []);
+  }, [assignedToMe, debouncedQuery, page, sort, status]);
 
-  const filteredCases = useMemo(() => cases.filter((caseItem) => {
-    const value = `${caseItem.case_id || ''} ${caseItem.description || ''} ${caseItem.patient_id || ''} ${caseItem.reviewer || ''} ${caseItem.status || ''}`.toLowerCase();
-    return value.includes(query.trim().toLowerCase()) && (status === 'All' || caseStatus(caseItem) === status);
-  }), [cases, query, status]);
-  const active = selected || filteredCases[0] || null;
+  useEffect(() => { setPage(0); setSelected(null); }, [assignedToMe, debouncedQuery, sort, status]);
+  const active = selected || cases[0] || null;
   const canDeleteCases = isAdministratorRole(user?.role);
+  const applySavedView = (viewName) => {
+    if (viewName === 'mine') { setAssignedToMe(true); setStatus('All'); }
+    if (viewName === 'awaiting') { setAssignedToMe(false); setStatus('New'); }
+    if (viewName === 'reviewing') { setAssignedToMe(false); setStatus('In Review'); }
+    if (viewName === 'all') { setAssignedToMe(false); setStatus('All'); }
+  };
 
   async function removeCase() {
     if (!casePendingRemoval || removing) return;
@@ -50,8 +76,10 @@ export default function CaseLibrary() {
     try {
       await platformService.deleteCase(casePendingRemoval.id);
       setCases((current) => current.filter((caseItem) => caseItem.id !== casePendingRemoval.id));
+      setTotal((current) => Math.max(0, current - 1));
       setSelected(null);
       setCasePendingRemoval(null);
+      notifyClinicalDataChanged({ type: 'case-deleted', caseId: casePendingRemoval.id });
     } catch (err) {
       setError(err.message || 'Unable to remove case.');
     } finally {
@@ -60,18 +88,19 @@ export default function CaseLibrary() {
   }
 
   return <main className="case-library" id="main-content">
+    <section className="case-library__saved-views" aria-label="Saved case views"><span>Views</span><button type="button" className={!assignedToMe && status === 'All' ? 'is-active' : ''} onClick={() => applySavedView('all')}>All cases</button><button type="button" className={assignedToMe ? 'is-active' : ''} onClick={() => applySavedView('mine')}>My assigned cases</button><button type="button" className={!assignedToMe && status === 'New' ? 'is-active' : ''} onClick={() => applySavedView('awaiting')}>Awaiting review</button><button type="button" className={!assignedToMe && status === 'In Review' ? 'is-active' : ''} onClick={() => applySavedView('reviewing')}>In review</button></section>
     <section className="case-library__filters" aria-label="Case library filters"><label className="case-library__search">
       <Search size={17} />
       <span className="sr-only">Search cases</span>
       <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search case ID, patient ID, diagnosis, or assigned pathologist" />
-    </label><label className="case-library__filter"><SlidersHorizontal size={16} /><span className="sr-only">Case status</span><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="All">All statuses</option><option value="New">Awaiting review</option><option value="In Review">In review</option><option value="Reviewed">Reviewed</option></select></label></section>
+    </label><label className="case-library__filter"><SlidersHorizontal size={16} /><span className="sr-only">Case status</span><select value={status} onChange={(event) => { setAssignedToMe(false); setStatus(event.target.value); }}><option value="All">All statuses</option><option value="New">Awaiting review</option><option value="In Review">In review</option><option value="Reviewed">Reviewed</option></select></label><label className="case-library__filter"><span className="sr-only">Sort cases</span><select value={sort} onChange={(event) => setSort(event.target.value)}><option value="created_at:desc">Newest first</option><option value="case_id:asc">Case ID A–Z</option><option value="status:asc">Status</option><option value="reviewer:asc">Assigned pathologist</option></select></label><div className="case-library__view-toggle" role="group" aria-label="Case display"><button type="button" className={view === 'cards' ? 'is-active' : ''} onClick={() => setView('cards')} aria-label="Card view"><LayoutList size={16} /></button><button type="button" className={view === 'table' ? 'is-active' : ''} onClick={() => setView('table')} aria-label="Table view"><Table2 size={16} /></button></div></section>
     {error && <p className="case-library__error" role="alert">{error}</p>}
 
     <div className="case-library__layout">
       <section>
-        <p className="case-library__count">{filteredCases.length} case{filteredCases.length === 1 ? '' : 's'}</p>
-        <div className="case-library__list">
-          {filteredCases.map((caseItem) => {
+        <p className="case-library__count">{total} case{total === 1 ? '' : 's'}</p>
+        <div className={view === 'cards' ? 'case-library__list' : 'case-library__table-wrap'}>
+          {loading ? Array.from({ length: 5 }, (_, index) => <div key={index} className="case-library__skeleton" aria-hidden="true" />) : cases.map((caseItem) => {
             const status = caseStatus(caseItem);
             const slides = caseItem.slide_count ?? caseItem.slides?.length ?? 0;
             return <button type="button" key={caseItem.id} onClick={() => setSelected(caseItem)} className={`case-library__card${active?.id === caseItem.id ? ' case-library__card--selected' : ''}`}>
@@ -80,8 +109,9 @@ export default function CaseLibrary() {
               <span className={`case-library__status case-library__status--${status.toLowerCase().replace(/\s+/g, '-')}`}>{status}</span>
             </button>;
           })}
-          {!filteredCases.length && <div className="case-library__empty"><ClipboardList size={26} /><strong>No cases found</strong><span>Adjust the search to find a case.</span></div>}
+          {!loading && !cases.length && <div className="case-library__empty"><ClipboardList size={26} /><strong>No cases found</strong><span>Adjust the search or status filter to find a case.</span></div>}
         </div>
+        <Pagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} disabled={loading} label="Case library pages" />
       </section>
 
       <aside className="case-library__details">

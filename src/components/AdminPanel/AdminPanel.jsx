@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import toast from 'react-hot-toast';
-import { UserPlus, Users, KeyRound, Power, PowerOff, ShieldAlert, Sparkles, Search } from 'lucide-react';
+import { UserPlus, Users, KeyRound, Power, PowerOff, ShieldAlert, Sparkles, Search, Eye, EyeOff } from 'lucide-react';
 import './AdminPanel.css';
 import { useAuth } from '../../modules/auth/AuthProvider';
 import Modal from '../Modal/Modal';
@@ -36,6 +36,7 @@ export default function AdminPanel({ API }) {
   const [role, setRole] = useState('Laboratory Manager');
   const [passwordResetUser, setPasswordResetUser] = useState(null);
   const [newPassword, setNewPassword] = useState('');
+  const [isResetPasswordVisible, setIsResetPasswordVisible] = useState(false);
   const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
   const [aiAccessUserId, setAiAccessUserId] = useState(null);
@@ -183,12 +184,14 @@ export default function AdminPanel({ API }) {
   const openPasswordReset = (selectedUser) => {
     setPasswordResetUser(selectedUser);
     setNewPassword('');
+    setIsResetPasswordVisible(false);
   };
 
   const closePasswordReset = () => {
     if (isResettingPassword) return;
     setPasswordResetUser(null);
     setNewPassword('');
+    setIsResetPasswordVisible(false);
   };
 
   const handleResetPassword = async (event) => {
@@ -210,6 +213,7 @@ export default function AdminPanel({ API }) {
         toast.success(`Password for ${passwordResetUser.username} reset successfully`);
         setPasswordResetUser(null);
         setNewPassword('');
+        setIsResetPasswordVisible(false);
       } else {
         const data = await response.json();
         toast.error(data.detail || 'Failed to reset password');
@@ -342,18 +346,30 @@ export default function AdminPanel({ API }) {
           <p>Enter a new password for <strong>{passwordResetUser?.username}</strong>.</p>
           <input className="reset-password-form__account" type="text" name="username" autoComplete="username" value={passwordResetUser?.username || ''} readOnly tabIndex={-1} aria-hidden="true" />
           <label htmlFor="reset-password">New password</label>
-          <input
-            ref={passwordInputRef}
-            id="reset-password"
-            name="new-password"
-            type="password"
-            autoComplete="new-password"
-            minLength={passwordPolicy.min_length}
-            required
-            value={newPassword}
-            onChange={(event) => setNewPassword(event.target.value)}
-            placeholder={passwordPolicyHint(passwordPolicy)}
-          />
+          <div className="reset-password-form__field">
+            <input
+              ref={passwordInputRef}
+              id="reset-password"
+              name="new-password"
+              type={isResetPasswordVisible ? 'text' : 'password'}
+              autoComplete="new-password"
+              minLength={passwordPolicy.min_length}
+              required
+              value={newPassword}
+              onChange={(event) => setNewPassword(event.target.value)}
+              placeholder={passwordPolicyHint(passwordPolicy)}
+            />
+            <button
+              type="button"
+              className="reset-password-form__visibility-toggle"
+              onClick={() => setIsResetPasswordVisible((visible) => !visible)}
+              aria-label={isResetPasswordVisible ? 'Hide password' : 'Show password'}
+              aria-pressed={isResetPasswordVisible}
+              title={isResetPasswordVisible ? 'Hide password' : 'Show password'}
+            >
+              {isResetPasswordVisible ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+            </button>
+          </div>
           <p className="password-policy-hint">{passwordPolicyHint(passwordPolicy)}</p>
         </form>
       </Modal>
