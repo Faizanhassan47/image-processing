@@ -62,24 +62,6 @@ export default function ViewerToolbar({
         <button
           type="button"
           className="btn-toolbar"
-          onClick={onZoomIn}
-          title="Zoom in (+)"
-          aria-label="Zoom in"
-        >
-          <ZoomIn size={16} />
-        </button>
-        <button
-          type="button"
-          className="btn-toolbar"
-          onClick={onZoomOut}
-          title="Zoom out (-)"
-          aria-label="Zoom out"
-        >
-          <ZoomOut size={16} />
-        </button>
-        <button
-          type="button"
-          className="btn-toolbar"
           onClick={onFit}
           title="Fit slide to window (F)"
           aria-label="Fit slide to window"
@@ -208,36 +190,6 @@ export default function ViewerToolbar({
           <span className="toolbar-btn-text">Annotations</span>
         </button>
       </div>
-
-      <div className="toolbar-separator" aria-hidden="true" />
-
-      {/* Group 5: Viewpoints & Bookmarks */}
-      <div className="toolbar-group" role="group" aria-label="Saved Viewpoints">
-        <button
-          type="button"
-          className="btn-toolbar"
-          onClick={onSaveViewpoint}
-          title="Save current viewpoint & display settings (B)"
-          aria-label="Save current viewpoint"
-        >
-          <Bookmark size={16} />
-          <span className="toolbar-btn-text">Save view</span>
-        </button>
-        <button
-          type="button"
-          className={`btn-toolbar ${showViewpoints ? 'btn-toolbar--active' : ''}`}
-          onClick={onToggleViewpoints}
-          title="Saved viewpoints gallery"
-          aria-pressed={showViewpoints}
-          aria-label="Toggle viewpoints gallery"
-        >
-          <BookmarkCheck size={16} />
-          <span className="toolbar-btn-text">Viewpoints</span>
-        </button>
-      </div>
-
-      <div className="toolbar-separator" aria-hidden="true" />
-
       {/* Group 6: Multi-Slide Registration & Compare */}
       <div className="toolbar-group" role="group" aria-label="Slide Comparison and Registration">
         {canRegister && (
@@ -256,15 +208,6 @@ export default function ViewerToolbar({
 
       {/* Group 7: Utility (Shortcuts, Fullscreen) */}
       <div className="toolbar-group toolbar-group--right" role="group" aria-label="Utilities">
-        <button
-          type="button"
-          className="btn-toolbar"
-          onClick={onOpenShortcuts}
-          title="Keyboard shortcuts (?)"
-          aria-label="Keyboard shortcuts help"
-        >
-          <Keyboard size={16} />
-        </button>
         <button
           type="button"
           className="btn-toolbar"

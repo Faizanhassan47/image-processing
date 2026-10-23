@@ -16,6 +16,20 @@
   height: 100%;
 }
 
+/* Clinical comparison view uses a light image surface like the case-review reference. */
+.layout--case-review .viewer-canvas-container,
+.layout--case-review .wsi-stage,
+.layout--case-review .wsi-stage .wsi-viewer,
+.layout--case-review .wsi-stage .wsi-viewer canvas {
+  background: #ffffff;
+}
+
+.layout--case-review .viewer-canvas-container {
+  border: 1px solid #dbe3ea;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
 .annotation-svg-overlay {
   position: absolute;
   inset: 0;
@@ -1289,4 +1303,183 @@
 
 .ai-roi-boundary rect {
   vector-effect: non-scaling-stroke;
+}
+
+.findings-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-card);
+}
+
+.findings-tab {
+  flex: 1;
+  padding: 11px 7px;
+  color: var(--text-muted);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  font: inherit;
+  font-size: .72rem;
+  cursor: pointer;
+}
+
+.findings-tab--active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  font-weight: 700;
+}
+
+.selected-findings {
+  padding: 13px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-card);
+}
+
+.selected-findings>div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.selected-findings strong {
+  color: var(--text-main);
+  font-size: .78rem;
+}
+
+.selected-findings .btn-control-secondary {
+  padding: 4px 7px;
+  font-size: .68rem;
+}
+
+.selected-findings p {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 12px 0 0;
+  color: var(--text-main);
+  font-size: .75rem;
+}
+
+.selected-findings>small {
+  display: block;
+  margin-top: 10px;
+  color: var(--text-dim);
+  font-size: .7rem;
+}
+
+.finding-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #f2a900;
+}
+
+.finding-details {
+  display: grid;
+  gap: 7px;
+  margin: 12px 0 0;
+}
+
+.finding-details>div {
+  display: grid;
+  grid-template-columns: 78px minmax(0, 1fr);
+  gap: 8px;
+  font-size: .7rem;
+  line-height: 1.35;
+}
+
+.finding-details dt {
+  color: var(--text-dim);
+}
+
+.finding-details dd {
+  margin: 0;
+  color: var(--text-main);
+  overflow-wrap: anywhere;
+}
+
+.quantitative-analysis {
+  margin: 10px;
+  padding: 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+}
+
+.quantitative-analysis h3 {
+  margin: 0 0 9px;
+  color: var(--text-main);
+  font-size: .78rem;
+}
+
+.quantitative-analysis__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.quantitative-analysis__grid>div {
+  min-width: 0;
+  padding: 8px;
+  border-radius: 4px;
+  background: var(--surface-primary-soft);
+}
+
+.quantitative-analysis__grid span,
+.quantitative-analysis__grid strong {
+  display: block;
+}
+
+.quantitative-analysis__grid span {
+  color: var(--text-dim);
+  font-size: .62rem;
+}
+
+.quantitative-analysis__grid strong {
+  margin-top: 3px;
+  color: var(--text-main);
+  font-size: .72rem;
+  overflow-wrap: anywhere;
+}
+
+.annotation-panel--ai .selected-findings,
+.annotation-panel--ai .viewer-calibration,
+.annotation-panel--ai>.annotation-panel-heading,
+.annotation-panel--ai .viewer-bookmarks,
+.annotation-panel--ai>.annotation-empty,
+.annotation-panel--ai .annotation-list,
+.annotation-panel--ai .quantitative-analysis {
+  display: none;
+}
+
+.annotation-panel--ai { overflow-y: auto; overscroll-behavior: contain; }
+.annotation-panel--ai .ai-panel { border-top: 0; }
+
+.annotation-panel--notes .selected-findings,
+.annotation-panel--notes .viewer-calibration,
+.annotation-panel--notes>.annotation-panel-heading,
+.annotation-panel--notes .viewer-bookmarks,
+.annotation-panel--notes>.annotation-empty,
+.annotation-panel--notes .annotation-list,
+.annotation-panel--notes .quantitative-analysis,
+.annotation-panel--notes .ai-panel {
+  display: none;
+}
+
+.case-notes-empty {
+  padding: 18px 14px;
+  color: var(--text-dim);
+}
+
+.case-notes-empty h3 {
+  margin: 0 0 8px;
+  color: var(--text-main);
+  font-size: .8rem;
+}
+
+.case-notes-empty p {
+  margin: 0;
+  font-size: .72rem;
+  line-height: 1.5;
 }

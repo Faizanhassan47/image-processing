@@ -11,6 +11,7 @@ import { Activity, BrainCircuit, ClipboardList, FileText, Microscope, Settings, 
 const Workspace = lazy(() => import('../modules/workspace/PathologyWorkspace'));
 const Dashboard = lazy(() => import('../modules/dashboard/Dashboard'));
 const SlideLibrary = lazy(() => import('../modules/slides/SlideLibrary'));
+const CaseLibrary = lazy(() => import('../modules/cases/CaseLibrary'));
 const AdminPanel = lazy(() => import('../components/AdminPanel/AdminPanel'));
 const AdministrationLogs = lazy(() => import('../components/AdministrationLogs/AdministrationLogs'));
 const PlatformOperations = lazy(() => import('../modules/platform/PlatformOperations'));
@@ -50,6 +51,7 @@ export default function AppRouter() {
     <Route path="/" element={<ProtectedRoute><ClinicalShell><ErrorBoundary title="The dashboard could not be displayed"><Dashboard /></ErrorBoundary></ClinicalShell></ProtectedRoute>} />
     <Route path="/dashboard" element={<Navigate to="/" replace />} />
     <Route path="/slides" element={<ProtectedRoute><ClinicalShell><ErrorBoundary title="The slide library could not be displayed"><SlideLibrary /></ErrorBoundary></ClinicalShell></ProtectedRoute>} />
+    <Route path="/case-library" element={<ProtectedRoute><ClinicalShell><ErrorBoundary title="The case library could not be displayed"><CaseLibrary /></ErrorBoundary></ClinicalShell></ProtectedRoute>} />
     <Route path="/cases" element={<ProtectedRoute><ErrorBoundary title="The workspace could not be displayed"><Workspace /></ErrorBoundary></ProtectedRoute>} />
     <Route path="/admin" element={<ProtectedRoute adminOnly><ErrorBoundary title="The admin panel could not be displayed"><AdminPage /></ErrorBoundary></ProtectedRoute>} />
     <Route path="/admin/logs" element={<ProtectedRoute adminOnly><ErrorBoundary title="Activity logs could not be displayed"><AdminLogsPage /></ErrorBoundary></ProtectedRoute>} />

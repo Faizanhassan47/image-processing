@@ -75,6 +75,8 @@ export const platformService = {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(prefs),
   }),
+  deleteSlide: (slideId) => request(`/slides/${slideId}`, { method: 'DELETE' }),
+  deleteCase: (caseId) => request(`/cases/${caseId}`, { method: 'DELETE' }),
   hl7Samples: (signal) => request('/hl7/sandbox/samples', { signal }),
   validateHl7: (rawPayload) => request('/hl7/sandbox/validate', {
     method: 'POST',

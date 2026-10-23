@@ -4,7 +4,7 @@ import WsiViewer from '../WsiViewer/WsiViewer';
 import './SlideViewer.css';
 
 export default function SlideViewer({ slide, zoom, setZoom, position, setPosition, dragStart, setDragStart,
-  isDragging, setIsDragging, viewerRef, reset, onError, syncViews, syncedViewerRef, onOpenRegistration }) {
+  isDragging, setIsDragging, viewerRef, reset, onError, syncViews, syncedViewerRef, onOpenRegistration, activePanel }) {
   const transformRef = useRef(null);
   const imageRef = useRef(null);
 
@@ -59,7 +59,7 @@ export default function SlideViewer({ slide, zoom, setZoom, position, setPositio
     return () => window.removeEventListener('keydown', keydown);
   }, [slide.file_type, setPosition, setZoom]);
 
-  if (slide.file_type === 'wsi') return <WsiViewer slide={slide} onError={onError} syncViews={syncViews} syncedViewerRef={syncedViewerRef} externalViewerRef={viewerRef} onOpenRegistration={onOpenRegistration} />;
+  if (slide.file_type === 'wsi') return <WsiViewer slide={slide} onError={onError} syncViews={syncViews} syncedViewerRef={syncedViewerRef} externalViewerRef={viewerRef} onOpenRegistration={onOpenRegistration} activePanel={activePanel} />;
 
   const down = (event) => {
     setIsDragging(true);

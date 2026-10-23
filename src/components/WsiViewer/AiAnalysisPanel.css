@@ -287,9 +287,6 @@
   border: 1px solid var(--border-interactive);
 }
 
-.ai-action-btn--secondary:hover:not(:disabled) {
-  background: var(--bg-canvas);
-}
 
 /* ── Status indicator ──────────────────────────────────────── */
 .ai-status-row {
@@ -313,13 +310,28 @@
   animation: ai-pulse 1.2s ease-in-out infinite;
 }
 
-.ai-status-dot--completed { background: #059669; }
-.ai-status-dot--failed   { background: #dc2626; }
-.ai-status-dot--pending  { background: #94a3b8; }
+.ai-status-dot--completed {
+  background: #059669;
+}
+
+.ai-status-dot--failed {
+  background: #dc2626;
+}
+
+.ai-status-dot--pending {
+  background: #94a3b8;
+}
 
 @keyframes ai-pulse {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.3; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.3;
+  }
 }
 
 /* ── Progress Card & Live Status ──────────────────────────── */
