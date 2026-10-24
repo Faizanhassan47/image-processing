@@ -19,7 +19,7 @@ export function isAdministratorRole(role) {
 }
 
 export function isIntakeRole(role) {
-  return role === SYSTEM_ADMIN_ROLE || role === 'Laboratory Manager';
+  return role === SUPER_ADMIN_ROLE || role === SYSTEM_ADMIN_ROLE || role === 'Laboratory Manager';
 }
 
 export function isClinicalReadRole(role) {

@@ -9,6 +9,8 @@
   text-align: center;
 }
 
+.empty-state__action { margin-top: var(--space-3); }
+
 .empty-state p {
   color: var(--text-muted);
   font-size: 0.95rem;

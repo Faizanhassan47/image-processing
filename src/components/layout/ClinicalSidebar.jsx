@@ -1,15 +1,16 @@
 import { Activity, BrainCircuit, ClipboardList, FolderOpen, Images, LayoutDashboard, Microscope, Settings, ShieldCheck, UsersRound } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../modules/auth/AuthProvider';
-import { isAdministratorRole, SYSTEM_ADMIN_ROLE, SUPER_ADMIN_ROLE } from '../../config/roles';
+import { isAdministratorRole, isProtectedSuperAdmin, SYSTEM_ADMIN_ROLE, SUPER_ADMIN_ROLE } from '../../config/roles';
 import './ClinicalSidebar.css';
 
-const isActive = (pathname, path) => pathname === path ? ' clinical-nav__link--active' : '';
+const isActive = (pathname, path) => pathname === path || (path !== '/' && pathname.startsWith(`${path}/`)) ? ' clinical-nav__link--active' : '';
 
 export default function ClinicalSidebar() {
   const { user } = useAuth();
   const { pathname } = useLocation();
   const operations = ['Laboratory Manager', SYSTEM_ADMIN_ROLE, SUPER_ADMIN_ROLE].includes(user?.role);
+  const isSuperAdmin = user?.role === SUPER_ADMIN_ROLE || isProtectedSuperAdmin(user?.username);
 
   return <aside className="clinical-sidebar" aria-label="Primary navigation">
     <Link to="/" className="clinical-brand"><Microscope size={23} /><span><small>Digital Pathology Platform</small></span></Link>
@@ -22,7 +23,7 @@ export default function ClinicalSidebar() {
       {user?.role !== 'Pathologist' && <Link to="/patients" className={`clinical-nav__link${isActive(pathname, '/patients')}`}><UsersRound size={16} />Patient directory</Link>}
       <Link to="/ai-features" className={`clinical-nav__link${isActive(pathname, '/ai-features')}`}><BrainCircuit size={16} />AI Extensions</Link>
       {operations && <Link to="/platform" className={`clinical-nav__link${isActive(pathname, '/platform')}`}><Activity size={16} />Operations</Link>}
-      {isAdministratorRole(user?.role) && <><span className="clinical-nav__spacer" /><span className="clinical-nav__label">MANAGEMENT</span><Link to="/admin" className={`clinical-nav__link${isActive(pathname, '/admin')}`}><ShieldCheck size={16} />Users & roles</Link><Link to="/admin" className="clinical-nav__link"><Settings size={16} />Administration</Link></>}
+      {isAdministratorRole(user?.role) && <><span className="clinical-nav__spacer" /><span className="clinical-nav__label">MANAGEMENT</span><Link to="/admin" className={`clinical-nav__link${pathname === '/admin' ? ' clinical-nav__link--active' : ''}`}><ShieldCheck size={16} />Users & roles</Link>{isSuperAdmin && <><Link to="/admin/ai-features" className={`clinical-nav__link${isActive(pathname, '/admin/ai-features')}`}><Settings size={16} />AI model management</Link><Link to="/admin/ai-licensing" className={`clinical-nav__link${isActive(pathname, '/admin/ai-licensing')}`}><Settings size={16} />AI licensing</Link><Link to="/admin/logs" className={`clinical-nav__link${isActive(pathname, '/admin/logs')}`}><Activity size={16} />Activity logs</Link></>}</>}
     </nav>
   </aside>;
 }
