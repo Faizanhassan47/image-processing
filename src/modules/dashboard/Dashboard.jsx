@@ -3,6 +3,7 @@ import { Activity, Check, ChevronRight, ClipboardList, Clock3, FileImage, Layers
 import { Link, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { caseService } from '../../services/caseService';
+import { subscribeToClinicalDataChanges } from '../../services/clinicalDataEvents';
 import './Dashboard.css';
 
 const statusTabs = [
@@ -45,11 +46,13 @@ export default function Dashboard() {
   const [query, setQuery] = useState('');
 
   useEffect(() => {
-    const controller = new AbortController();
-    caseService.list(controller.signal)
-      .then((data) => setCases(Array.isArray(data) ? data : []))
+    const loadCases = (signal) => caseService.list(signal)
+      .then((data) => setCases(Array.isArray(data) ? data : data.items || []))
       .catch((err) => { if (err.name !== 'AbortError') setError(err.message); });
-    return () => controller.abort();
+    const controller = new AbortController();
+    loadCases(controller.signal);
+    const unsubscribe = subscribeToClinicalDataChanges(() => loadCases());
+    return () => { controller.abort(); unsubscribe(); };
   }, []);
 
   const scopedCases = useMemo(() => cases.filter((item) => {

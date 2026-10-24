@@ -69,7 +69,7 @@ function scaleLabel(microns) {
   return `${Number(microns.toPrecision(3))} µm`;
 }
 
-export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, externalViewerRef, onOpenRegistration, activePanel }) {
+export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, externalViewerRef, onOpenRegistration, onOpenCompare, activePanel }) {
   const { user } = useAuth();
   const elementRef = useRef(null);
   const workspaceRef = useRef(null);
@@ -1006,6 +1006,7 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
           showViewpoints={showViewpointsModal}
           onToggleViewpoints={() => setShowViewpointsModal((m) => !m)}
           onOpenRegistration={onOpenRegistration}
+          onOpenCompare={onOpenCompare}
           canRegister={Boolean(onOpenRegistration)}
           fullscreen={fullscreen}
           onToggleFullscreen={toggleFullscreen}

@@ -22,7 +22,9 @@ import PatientPicker from '../../components/PatientPicker/PatientPicker';
 import { patientService } from '../../services/patientService';
 import { platformService } from '../../services/platformService';
 import { caseService } from '../../services/caseService';
+import { notifyClinicalDataChanged } from '../../services/clinicalDataEvents';
 import RegistrationWorkspace from '../registration/RegistrationWorkspace';
+import ClinicalSidebar from '../../components/layout/ClinicalSidebar';
 
 function normalizeCase(item) {
   return {
@@ -209,6 +211,27 @@ export default function App() {
     resetRasterView();
   };
 
+  useEffect(() => {
+    if (user?.role !== 'Pathologist' || !selectedCaseId) return;
+    const activeCase = cases.find((item) => item.id === selectedCaseId);
+    const actorNames = [user.username, user.display_name]
+      .filter(Boolean)
+      .map((value) => value.trim().toLowerCase());
+    const isAssignedToPathologist = actorNames.includes(String(activeCase?.reviewer || '').trim().toLowerCase());
+    if (!activeCase || activeCase.status !== 'New' || !isAssignedToPathologist) return;
+
+    const controller = new AbortController();
+    caseService.updateStatus(activeCase.id, 'In Review', controller.signal)
+      .then((updatedCase) => {
+        setCases((current) => current.map((item) => item.id === updatedCase.id ? normalizeCase(updatedCase) : item));
+        notifyClinicalDataChanged({ type: 'case-status-changed', caseId: updatedCase.id, status: 'In Review' });
+      })
+      .catch((error) => {
+        if (error.name !== 'AbortError') toast.error(error.message || 'Could not start case review.');
+      });
+    return () => controller.abort();
+  }, [cases, selectedCaseId, user?.display_name, user?.role, user?.username]);
+
   const selectSlide = (slide) => {
     if (slide.id === selectedSlideId) return;
     if (selectedSlide) {
@@ -237,6 +260,21 @@ export default function App() {
       }
       return [...current, slide.id];
     });
+  };
+
+  const openSideBySideComparison = () => {
+    if (!selectedSlide || !selectedCase) return;
+    if (compareSlideIds.length) {
+      setSplitView(true);
+      return;
+    }
+    const comparisonSlide = selectedCase.slides.find((slide) => slide.id !== selectedSlide.id);
+    if (!comparisonSlide) {
+      toast.error('Add another slide to this case before starting a comparison.');
+      return;
+    }
+    setCompareSlideIds([comparisonSlide.id]);
+    setSplitView(true);
   };
 
   const addScreen = (slideId) => {
@@ -309,6 +347,7 @@ export default function App() {
       await refresh();
       setSelectedCaseId(data.id);
       setSelectedSlideId(data.slides[0]?.id ?? null);
+      notifyClinicalDataChanged({ type: 'case-created', caseId: data.id });
       toast.success(`Case “${data.case_id}” created.`);
     } catch (error) {
       toast.error(error.message);
@@ -335,6 +374,7 @@ export default function App() {
       await refresh();
       setSelectedSlideId(slide.id);
       setShowSlideForm(false);
+      notifyClinicalDataChanged({ type: 'slide-created', slideId: slide.id, caseId: selectedCase.id });
       toast.success(`Slide “${slide.label}” is ready.`);
     } catch (error) {
       toast.error(error.message);
@@ -411,6 +451,7 @@ export default function App() {
       setCompareSlideIds([]);
       setSplitView(false);
       setDeleteSlideTarget(null);
+      notifyClinicalDataChanged({ type: 'slide-deleted', slideId: deleteSlideTarget.id, caseId: selectedCaseId });
       toast.success('Slide removed and its source file moved to protected deleted storage.');
     } catch (error) {
       toast.error(error.message);
@@ -434,6 +475,7 @@ export default function App() {
       setCompareSlideIds([]);
       setSplitView(false);
       setDeleteCaseTarget(null);
+      notifyClinicalDataChanged({ type: 'case-deleted', caseId: deleteCaseTarget.id });
       toast.success('Case removed and source files moved to protected deleted storage.');
     } catch (error) {
       toast.error(error.message);
@@ -528,19 +570,7 @@ export default function App() {
   if (!user) return <Login />;
   return (
     <div className="clinical-shell">
-      <aside className="clinical-sidebar" aria-label="Primary navigation">
-        <Link to="/" className="clinical-brand"><Microscope size={23} /><span><small>Digital Pathology Platform</small></span></Link>
-        <nav className="clinical-nav">
-          <span className="clinical-nav__label">WORKSPACE</span>
-          <Link to="/dashboard" className="clinical-nav__link"><LayoutDashboard size={16} />Dashboard</Link>
-          <Link to="/cases" className="clinical-nav__link clinical-nav__link--active"><ClipboardCheck size={16} />Cases workspace</Link>
-          <Link to="/slides" className="clinical-nav__link"><Images size={16} />Slide library</Link>
-          {user?.role !== 'Pathologist' && <Link to="/patients" className="clinical-nav__link"><UsersRound size={16} />Patient directory</Link>}
-          <Link to="/ai-features" className="clinical-nav__link"><BrainCircuit size={16} />AI analysis</Link>
-          {['Laboratory Manager', SYSTEM_ADMIN_ROLE, SUPER_ADMIN_ROLE].includes(user?.role) && <Link to="/platform" className="clinical-nav__link"><Activity size={16} />Operations</Link>}
-          {isAdministratorRole(user?.role) && <><span className="clinical-nav__spacer" /><span className="clinical-nav__label">MANAGEMENT</span><Link to="/admin" className="clinical-nav__link"><ShieldCheck size={16} />Users & roles</Link><Link to="/admin" className="clinical-nav__link"><Settings size={16} />Administration</Link></>}
-        </nav>
-      </aside>
+      <ClinicalSidebar />
       <main id="main-content" className={`layout${selectedCase ? ` layout--case-review layout--section-${caseSection}` : ''}`}>
         <header className="header">
           <div className="header-brand">
@@ -566,7 +596,7 @@ export default function App() {
         </section>}
 
         {selectedCase && caseSection === 'details' && <section className="case-tab-page"><header><span>Case details</span><h2>{selectedCase.case_id}</h2></header><dl className="case-tab-detail-grid"><div><dt>Status</dt><dd>{selectedCase.status || 'New'}</dd></div><div><dt>Patient / specimen ID</dt><dd>{selectedCase.patient_identifier || selectedCase.patient_id || 'Not recorded'}</dd></div><div><dt>Specimen type</dt><dd>{selectedCase.specimen_type || 'Not recorded'}</dd></div><div><dt>Assigned pathologist</dt><dd>{selectedCase.reviewer || 'Unassigned'}</dd></div><div><dt>Created</dt><dd>{formatDate(selectedCase.created_at)}</dd></div><div><dt>Slides</dt><dd>{selectedCase.slide_count || 0}</dd></div></dl></section>}
-        {selectedCase && caseSection === 'report' && <section className="case-tab-page case-tab-page--report"><ReportEditor selectedCase={selectedCase} selectSlide={selectSlide} setMessage={reportMessage} /></section>}
+        {selectedCase && caseSection === 'report' && <section className="case-tab-page case-tab-page--report"><ReportEditor selectedCase={selectedCase} selectSlide={selectSlide} setMessage={reportMessage} onReportFinalized={refresh} /></section>}
 
         {!isAuditorRole(user?.role) && (
           <section className={`card form-card ${showCreateCase ? 'form-card--open' : ''}`}>
@@ -742,7 +772,7 @@ export default function App() {
                       </div>}
                 </section>}
 
-                {inspectorTab === 'report' && <ReportEditor selectedCase={selectedCase} selectSlide={selectSlide} setMessage={reportMessage} />}
+                {inspectorTab === 'report' && <ReportEditor selectedCase={selectedCase} selectSlide={selectSlide} setMessage={reportMessage} onReportFinalized={refresh} />}
               </aside>
 
               {showSlideForm && !(selectedCase.slides || []).length && slideUploadForm}
@@ -800,7 +830,7 @@ export default function App() {
                 {selectedSlide && !splitView && <SlideViewer key={selectedSlide.id} slide={selectedSlide} zoom={zoom} setZoom={setZoom}
                   position={position} setPosition={setPosition} dragStart={dragStart} setDragStart={setDragStart}
                   isDragging={isDragging} setIsDragging={setIsDragging} viewerRef={viewerRef}
-                  reset={resetRasterView} onError={viewerError} activePanel={caseSection === 'ai' ? 'ai' : 'findings'} />}
+                  reset={resetRasterView} onError={viewerError} onOpenCompare={openSideBySideComparison} activePanel={caseSection === 'ai' ? 'ai' : 'findings'} />}
 
                 {selectedSlide && splitView && compareSlideIds.length > 0 && <div className="compare-container">
                   <div className="compare-toolbar">
@@ -814,22 +844,16 @@ export default function App() {
                       <SlideViewer key={selectedSlide.id} slide={selectedSlide} zoom={zoom} setZoom={setZoom}
                         position={position} setPosition={setPosition} dragStart={dragStart} setDragStart={setDragStart}
                         isDragging={isDragging} setIsDragging={setIsDragging} viewerRef={viewerRef}
-                        reset={resetRasterView} onError={viewerError} syncViews={syncViews} syncedViewerRef={secondaryViewerRefs} isPrimary={true} activePanel={caseSection === 'ai' ? 'ai' : 'findings'} />
+                        reset={resetRasterView} onError={viewerError} onOpenCompare={openSideBySideComparison} syncViews={syncViews} syncedViewerRef={secondaryViewerRefs} isPrimary={true} activePanel={caseSection === 'ai' ? 'ai' : 'findings'} />
                     </div>{compareSlides.map((compareSlide, index) => <div className="compare-panel secondary-panel" key={compareSlide.id}>
                       <div className="screen-label"><span>Screen {index + 2}</span><strong>{compareSlide.label}</strong><button type="button" aria-label={`Close ${compareSlide.label} screen`} onClick={() => toggleScreenSlide(compareSlide)}><X size={13} /></button></div>
                       <SlideViewer key={compareSlide.id + '-compare'} slide={compareSlide} zoom={syncViews ? zoom : zoom2} setZoom={syncViews ? setZoom : setZoom2}
                         position={syncViews ? position : position2} setPosition={syncViews ? setPosition : setPosition2} dragStart={dragStart2} setDragStart={setDragStart2}
                         isDragging={isDragging2} setIsDragging={setIsDragging2} viewerRef={index === 0 ? viewerRef2 : index === 1 ? viewerRef3 : viewerRef4}
-                        reset={resetRasterView} onError={viewerError} syncViews={syncViews} syncedViewerRef={viewerRef} isPrimary={false} activePanel={caseSection === 'ai' ? 'ai' : 'findings'} />
+                        reset={resetRasterView} onError={viewerError} onOpenCompare={openSideBySideComparison} syncViews={syncViews} syncedViewerRef={viewerRef} isPrimary={false} activePanel={caseSection === 'ai' ? 'ai' : 'findings'} />
                     </div>)}
                   </div>
                 </div>}
-
-                {selectedCase && <section className="report-assignment" aria-label="Report assignment">
-                  <div><h3>Assign report</h3><p>Choose the pathologist responsible for completing this case report.</p></div>
-                  {isAuditorRole(user?.role) ? <strong className="report-assignment__read-only">{selectedCase.reviewer || 'Unassigned'}</strong> : <form onSubmit={(event) => updateReview(event, 'reviewer', 'Report assignee updated.')}><label htmlFor="report-assignee">Assign to</label><select id="report-assignee" name="reviewer" defaultValue={selectedCase.reviewer || ''} disabled={busy || reviewersLoading || Boolean(reviewersError)}><option value="">Unassigned</option>{selectedCase.reviewer && !availableReviewers.some((reviewer) => reviewer.username === selectedCase.reviewer) && <option value={selectedCase.reviewer}>{selectedCase.reviewer} (currently assigned)</option>}{availableReviewers.map((reviewer) => <option key={reviewer.id} value={reviewer.username}>{reviewer.display_name || reviewer.username}</option>)}</select><button className="btn-primary" disabled={busy || reviewersLoading || Boolean(reviewersError) || !availableReviewers.length}>{busy ? 'Assigning…' : 'Assign report'}</button></form>}
-                </section>}
-
               </>}
             </>}
           </section>

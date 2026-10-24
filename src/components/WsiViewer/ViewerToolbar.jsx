@@ -1,8 +1,9 @@
+import { useEffect, useRef, useState } from 'react';
 import {
   ZoomIn, ZoomOut, Maximize2, RotateCcw, RotateCw,
   FlipHorizontal, FlipVertical, Sliders, Map, Footprints,
   Eye, EyeOff, Bookmark, BookmarkCheck, SplitSquareVertical,
-  Circle, Keyboard, PenTool, Square, Expand, Minimize2
+  Circle, Keyboard, PenTool, Square, Expand, Minimize2, ChevronDown
 } from 'lucide-react';
 import './ViewerToolbar.css';
 
@@ -52,11 +53,26 @@ export default function ViewerToolbar({
   drawMode,
   setDrawMode,
 }) {
+  const [annotationMenuOpen, setAnnotationMenuOpen] = useState(false);
+  const annotationMenuRef = useRef(null);
   const isAdjusted = brightness !== 100 || contrast !== 100 || gamma !== 1.0;
   const isTransformed = rotation !== 0 || flipH || flipV;
 
+  useEffect(() => {
+    const closeMenu = (event) => {
+      if (annotationMenuRef.current && !annotationMenuRef.current.contains(event.target)) setAnnotationMenuOpen(false);
+    };
+    document.addEventListener('pointerdown', closeMenu);
+    return () => document.removeEventListener('pointerdown', closeMenu);
+  }, []);
+
+  const selectAnnotationTool = (mode) => {
+    setDrawMode(drawMode === mode ? null : mode);
+    setAnnotationMenuOpen(false);
+  };
+
   return (
-    <nav className="advanced-viewer-toolbar" aria-label="Whole-slide image controls">
+    <nav className={`advanced-viewer-toolbar${annotationMenuOpen ? ' advanced-viewer-toolbar--annotation-open' : ''}`} aria-label="Whole-slide image controls">
       {/* Group 1: Zoom & Navigation */}
       <div className="toolbar-group" role="group" aria-label="Zoom and View">
         <button
@@ -144,29 +160,8 @@ export default function ViewerToolbar({
         </button>
       </div>
 
-      <div className="toolbar-separator" aria-hidden="true" />
-
-      <div className="toolbar-group" role="group" aria-label="Draw analysis region">
-        <button type="button" className={`btn-toolbar ${drawMode === 'rectangle' ? 'btn-toolbar--active' : ''}`} onClick={() => setDrawMode(drawMode === 'rectangle' ? null : 'rectangle')} title="Draw rectangular analysis region" aria-pressed={drawMode === 'rectangle'}><Square size={16} /><span className="toolbar-btn-text">Rectangle</span></button>
-        <button type="button" className={`btn-toolbar ${drawMode === 'ellipse' ? 'btn-toolbar--active' : ''}`} onClick={() => setDrawMode(drawMode === 'ellipse' ? null : 'ellipse')} title="Draw circular or oval analysis region" aria-pressed={drawMode === 'ellipse'}><Circle size={16} /><span className="toolbar-btn-text">Circle</span></button>
-        <button type="button" className={`btn-toolbar ${drawMode === 'freehand' ? 'btn-toolbar--active' : ''}`} onClick={() => setDrawMode(drawMode === 'freehand' ? null : 'freehand')} title="Draw a freehand analysis region" aria-pressed={drawMode === 'freehand'}><PenTool size={16} /><span className="toolbar-btn-text">Pen</span></button>
-      </div>
-
-      <div className="toolbar-separator" aria-hidden="true" />
-
       {/* Group 4: Overlay & Layer Toggles */}
       <div className="toolbar-group" role="group" aria-label="Overlays and Layers">
-        <button
-          type="button"
-          className={`btn-toolbar ${minimapVisible ? 'btn-toolbar--active' : ''}`}
-          onClick={onToggleMinimap}
-          title="Toggle navigator minimap (M)"
-          aria-pressed={minimapVisible}
-          aria-label="Toggle navigator minimap"
-        >
-          <Map size={16} />
-          <span className="toolbar-btn-text">Minimap</span>
-        </button>
         <button
           type="button"
           className={`btn-toolbar ${trailVisible ? 'btn-toolbar--active' : ''}`}
@@ -178,20 +173,34 @@ export default function ViewerToolbar({
           <Footprints size={16} />
           <span className="toolbar-btn-text">Trail</span>
         </button>
-        <button
-          type="button"
-          className={`btn-toolbar ${annotationsVisible ? 'btn-toolbar--active' : ''}`}
-          onClick={onToggleAnnotations}
-          title="Toggle annotations layer (A)"
-          aria-pressed={annotationsVisible}
-          aria-label="Toggle annotations visibility"
-        >
-          {annotationsVisible ? <Eye size={16} /> : <EyeOff size={16} />}
-          <span className="toolbar-btn-text">Annotations</span>
-        </button>
+        <div className="annotation-toolbar-menu" ref={annotationMenuRef}>
+          <button type="button" className={`btn-toolbar ${annotationMenuOpen || drawMode ? 'btn-toolbar--active' : ''}`} onClick={() => setAnnotationMenuOpen((open) => !open)} title="Annotation tools" aria-expanded={annotationMenuOpen} aria-haspopup="menu">
+            {annotationsVisible ? <Eye size={16} /> : <EyeOff size={16} />}
+            <span className="toolbar-btn-text">Annotations</span><ChevronDown size={13} />
+          </button>
+          {annotationMenuOpen && <div className="annotation-toolbar-menu__popup" role="menu" aria-label="Annotation tools">
+            <button type="button" role="menuitemcheckbox" aria-checked={annotationsVisible} onClick={onToggleAnnotations}>{annotationsVisible ? <Eye size={15} /> : <EyeOff size={15} />}<span>Show annotations</span></button>
+            <div className="annotation-toolbar-menu__separator" />
+            <button type="button" role="menuitemradio" aria-checked={drawMode === 'rectangle'} onClick={() => selectAnnotationTool('rectangle')}><Square size={15} /><span>Rectangle</span></button>
+            <button type="button" role="menuitemradio" aria-checked={drawMode === 'ellipse'} onClick={() => selectAnnotationTool('ellipse')}><Circle size={15} /><span>Circle</span></button>
+            <button type="button" role="menuitemradio" aria-checked={drawMode === 'freehand'} onClick={() => selectAnnotationTool('freehand')}><PenTool size={15} /><span>Pen tool</span></button>
+          </div>}
+        </div>
       </div>
       {/* Group 6: Multi-Slide Registration & Compare */}
       <div className="toolbar-group" role="group" aria-label="Slide Comparison and Registration">
+        {onOpenCompare && (
+          <button
+            type="button"
+            className="btn-toolbar"
+            onClick={onOpenCompare}
+            title="Compare this slide with another slide side by side"
+            aria-label="Compare slides side by side"
+          >
+            <SplitSquareVertical size={16} />
+            <span className="toolbar-btn-text">Side by side</span>
+          </button>
+        )}
         {canRegister && (
           <button
             type="button"

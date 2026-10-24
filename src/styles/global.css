@@ -330,11 +330,17 @@ button {
 }
 
 /* The shared top bar owns page identity; content headers retain actions only. */
-.clinical-shell .dashboard-page__header > div:first-child,
-.clinical-shell .slide-library__header > div:first-child,
-.clinical-shell .patient-directory__header > div:first-child,
-.clinical-shell .ai-store__heading { display: none; }
+.clinical-shell .dashboard-page__header>div:first-child,
+.clinical-shell .slide-library__header>div:first-child,
+.clinical-shell .patient-directory__header>div:first-child,
+.clinical-shell .ai-store__heading {
+  display: none;
+}
+
 .clinical-shell .dashboard-page__header,
 .clinical-shell .slide-library__header,
 .clinical-shell .patient-directory__header,
-.clinical-shell .ai-store__header { min-height: 0; justify-content: flex-end; }
+.clinical-shell .ai-store__header {
+  min-height: 0;
+  justify-content: flex-end;
+}
