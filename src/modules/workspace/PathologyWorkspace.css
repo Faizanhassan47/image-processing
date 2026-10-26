@@ -2637,7 +2637,7 @@ body {
 
 .case-review-tab:hover {
   color: var(--color-primary);
-  background: var(--color-surface-hover);
+
 }
 
 .case-review-tab--active {
@@ -2704,6 +2704,31 @@ body {
   display: none;
 }
 
+/* Viewer/case-review contrast corrections for the dark application theme. */
+.case-review-hero__crumbs a,
+.case-review-hero__crumbs strong,
+.case-review-hero__main p,
+.case-review-hero__meta strong,
+.case-review-tab,
+.case-tab-page,
+.case-tab-page h2,
+.case-tab-detail-grid dd {
+  color: var(--color-text);
+}
+
+.case-review-hero__meta small,
+.case-review-hero__crumbs,
+.case-review-hero__main p span,
+.case-tab-page header span,
+.case-tab-detail-grid dt {
+  color: var(--color-text-muted);
+}
+
+.case-review-tab--active {
+  color: #67b7ff;
+  border-bottom-color: #67b7ff;
+}
+
 .layout--case-review .viewer-header {
   display: none;
 }
@@ -2751,7 +2776,6 @@ body {
   grid-template-rows: auto minmax(560px, 1fr) auto;
   gap: 10px;
   padding: 12px;
-  background: #f8fafc;
 }
 
 .layout--case-review .case-inspector {
@@ -2993,17 +3017,76 @@ body {
   display: none;
 }
 
-.layout--case-review .report-assignment { grid-column: 2; grid-row: 3; display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 14px 16px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
-.report-assignment h3 { margin: 0; color: var(--color-text); font-size: .9rem; }
-.report-assignment p { margin: 4px 0 0; color: var(--color-text-muted); font-size: .72rem; }
-.report-assignment form { display: grid; grid-template-columns: auto minmax(180px, 260px) auto; align-items: end; gap: 8px; }
-.report-assignment label { color: var(--color-text-muted); font-size: .7rem; }
-.report-assignment select { min-height: 36px; padding: 0 9px; color: var(--color-text); border: 1px solid var(--color-border-strong); border-radius: var(--radius-sm); background: var(--color-surface); font: inherit; font-size: .76rem; }
-.report-assignment .btn-primary { min-height: 36px; padding: 0 12px; font-size: .74rem; }
-.report-assignment__read-only { color: var(--color-text); font-size: .8rem; }
+.layout--case-review .report-assignment {
+  grid-column: 2;
+  grid-row: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 14px 16px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.report-assignment h3 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: .9rem;
+}
+
+.report-assignment p {
+  margin: 4px 0 0;
+  color: var(--color-text-muted);
+  font-size: .72rem;
+}
+
+.report-assignment form {
+  display: grid;
+  grid-template-columns: auto minmax(180px, 260px) auto;
+  align-items: end;
+  gap: 8px;
+}
+
+.report-assignment label {
+  color: var(--color-text-muted);
+  font-size: .7rem;
+}
+
+.report-assignment select {
+  min-height: 36px;
+  padding: 0 9px;
+  color: var(--color-text);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  font: inherit;
+  font-size: .76rem;
+}
+
+.report-assignment .btn-primary {
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: .74rem;
+}
+
+.report-assignment__read-only {
+  color: var(--color-text);
+  font-size: .8rem;
+}
 
 @media (max-width: 900px) {
-  .layout--case-review .report-assignment { align-items: stretch; flex-direction: column; }
-  .report-assignment form { grid-template-columns: 1fr; }
-  .report-assignment select { width: 100%; }
+  .layout--case-review .report-assignment {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .report-assignment form {
+    grid-template-columns: 1fr;
+  }
+
+  .report-assignment select {
+    width: 100%;
+  }
 }

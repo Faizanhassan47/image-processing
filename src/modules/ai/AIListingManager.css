@@ -168,7 +168,6 @@
 }
 
 .ai-listing-form .ai-listing-form__calculated-price {
-    color: var(--color-primary);
     background: var(--color-surface-subtle);
     font-weight: var(--font-weight-semibold);
     cursor: default;

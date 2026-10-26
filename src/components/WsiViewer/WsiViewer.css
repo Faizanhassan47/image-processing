@@ -1337,8 +1337,8 @@
 }
 
 .findings-tab--active {
-  color: var(--primary);
-  border-bottom-color: var(--primary);
+  color: #67b7ff;
+  border-bottom-color: #67b7ff;
   font-weight: 700;
 }
 

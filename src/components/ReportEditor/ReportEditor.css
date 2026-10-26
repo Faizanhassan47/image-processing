@@ -213,6 +213,41 @@
     box-shadow: var(--shadow-md);
 }
 
+/* Reports remain document-like white paper inside the dark application shell. */
+.report-preview,
+.report-preview p,
+.report-preview li,
+.report-preview dd {
+    color: #1d2933;
+}
+
+.report-preview .surgical-preview-brand,
+.report-preview .surgical-preview-title h2,
+.report-preview section h3 {
+    color: #243b53;
+}
+
+.report-preview .surgical-preview-brand span,
+.report-preview .surgical-preview-title span,
+.report-preview .surgical-preview-header dt,
+.report-preview .report-patient-case dt {
+    color: #52667a;
+}
+
+.report-preview--surgical section h3 {
+    background: #f4f7f9;
+}
+
+.report-preview--surgical .report-preview__diagnosis h3 {
+    color: #fff;
+    background: #163a5f;
+}
+
+.report-preview--surgical .report-preview__ai h3 {
+    color: #163a5f;
+    background: #edf4fa;
+}
+
 .report-preview>header {
     padding-bottom: var(--space-5);
     text-align: center;
