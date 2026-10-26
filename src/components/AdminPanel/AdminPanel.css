@@ -124,7 +124,6 @@
 .role-badge {
   display: inline-flex;
   padding: var(--space-1) var(--space-2);
-  color: var(--primary-hover);
   background: var(--surface-primary-soft);
   border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-pill);
@@ -161,7 +160,6 @@
 .admin-panel .btn-primary {
   min-height: var(--button-height);
   padding: 0 var(--space-6);
-  color: var(--text-on-primary);
   background: var(--primary);
   border: 0;
   border-radius: var(--radius-sm);
@@ -233,9 +231,7 @@
   background-color: var(--bg-inner);
 }
 
-.role-select:hover {
-  border-color: var(--primary-hover);
-}
+
 
 .admin-section-heading {
   display: flex;
@@ -343,42 +339,6 @@
 .reset-password-form input:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 var(--focus-ring-width) var(--primary-glow);
-}
-
-.reset-password-form__field {
-  position: relative;
-}
-
-.reset-password-form__field input {
-  padding-right: calc(var(--space-4) + 32px);
-}
-
-.reset-password-form__visibility-toggle {
-  position: absolute;
-  top: 50%;
-  right: var(--space-2);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  color: var(--text-muted);
-  background: transparent;
-  border: 0;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transform: translateY(-50%);
-}
-
-.reset-password-form__visibility-toggle:hover {
-  color: var(--primary);
-  background: var(--primary-subtle);
-}
-
-.reset-password-form__visibility-toggle:focus-visible {
-  outline: var(--focus-ring-width) solid var(--primary);
-  outline-offset: 1px;
 }
 
 .reset-password-form .reset-password-form__account {
@@ -634,7 +594,6 @@
 .role-select {
   min-height: 32px;
   padding: 0 28px 0 10px;
-  color: var(--color-primary);
   background: var(--color-primary-soft);
   border-color: var(--color-border-strong);
 }
@@ -688,6 +647,7 @@
     padding: 16px;
   }
 }
+
 .password-policy-hint {
   margin: var(--spacing-xs) 0 0;
   color: var(--color-text-muted);

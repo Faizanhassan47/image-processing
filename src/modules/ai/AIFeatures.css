@@ -182,7 +182,6 @@
     place-items: center;
     width: 44px;
     height: 44px;
-    color: var(--color-primary);
     background: var(--color-primary-soft);
     border-radius: var(--radius-sm);
 }
@@ -348,9 +347,6 @@
     font-size: var(--font-size-sm);
 }
 
-.ai-model-card__price small {
-    color: var(--color-primary);
-}
 
 .ai-model-card__primary {
     display: inline-flex;
@@ -419,7 +415,7 @@
 }
 
 input:checked+.ai-switch {
-    background: var(--color-primary);
+    background: white;
 }
 
 input:checked+.ai-switch::after {

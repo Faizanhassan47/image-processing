@@ -251,12 +251,10 @@
 }
 
 .activity-category {
-  color: var(--color-primary);
   background: var(--color-primary-soft);
 }
 
 .activity-outcome {
-  color: var(--color-success-text);
   background: var(--color-success-soft);
 }
 

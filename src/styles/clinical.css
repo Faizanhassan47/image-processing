@@ -930,7 +930,6 @@ textarea:focus,
 
 .page-eyebrow {
   margin: 0 0 2px;
-  color: var(--color-primary);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-bold);
   text-transform: uppercase;
@@ -1059,4 +1058,56 @@ textarea::placeholder {
 .not-found {
   color: var(--color-text);
   background: var(--color-surface);
+}
+
+/* Dark application theme: keep worklists and workspace content readable. */
+.clinical-topbar strong,
+.clinical-topbar small {
+  color: var(--color-text);
+}
+
+.dashboard-page__toolbar,
+.dashboard-page th,
+.case-library__data-table th {
+  background: var(--color-surface-subtle);
+}
+
+.dashboard-page__table-wrap,
+.case-library__data-table-wrap,
+.case-workspace,
+.case-workspace .viewer-card,
+.case-workspace .case-details,
+.case-workspace .case-inspector {
+  color: var(--color-text);
+  background: var(--color-surface);
+  border-color: var(--color-border);
+}
+
+.dashboard-page td,
+.case-library__data-table td,
+.case-library__data-table strong,
+.case-library__details h2,
+.case-library__metadata dd,
+.case-library__slides p,
+.case-library__slides li,
+.case-workspace h1,
+.case-workspace h2,
+.case-workspace h3,
+.case-workspace p,
+.case-workspace label {
+  color: var(--color-text);
+}
+
+.dashboard-page__table-wrap tbody tr,
+.case-library__data-table tbody tr {
+  background: var(--color-surface);
+}
+
+
+.case-workspace input,
+.case-workspace textarea,
+.case-workspace select {
+  color: var(--color-text);
+  background: var(--color-surface-subtle);
+  border-color: var(--color-border-strong);
 }

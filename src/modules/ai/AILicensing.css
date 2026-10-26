@@ -55,7 +55,6 @@
 
 .ai-license-summary svg {
     grid-row: span 2;
-    color: var(--color-primary);
 }
 
 .ai-license-summary span {
