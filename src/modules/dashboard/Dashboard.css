@@ -158,7 +158,8 @@
     color: inherit;
 }
 
-.dashboard-page__tabs button.is-active {
+.dashboard-page__tabs button.is-active,
+.dashboard-page__tabs .app-tabs__tab--active {
     color: #0969da;
     border-bottom-color: #0969da;
     font-weight: 700;

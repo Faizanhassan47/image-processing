@@ -8,6 +8,7 @@ import {
 import Empty from '../../components/EmptyState/EmptyState';
 import Field from '../../components/Field/Field';
 import ReportEditor from '../../components/ReportEditor/ReportEditor';
+import Tabs from '../../components/Tabs/Tabs';
 import SlideViewer from '../../components/SlideViewer/SlideViewer';
 import { isAdministratorRole, isAuditorRole, SYSTEM_ADMIN_ROLE, SUPER_ADMIN_ROLE } from '../../config/roles';
 import './PathologyWorkspace.css';
@@ -43,6 +44,8 @@ const MAX_VIEWER_SCREENS = 4;
 
 export default function App() {
   const { user, logout } = useAuth();
+  const [branding, setBranding] = useState({ title: 'Digital Pathology Platform', subtitle: 'Digital Pathology Platform', logo: null, logoSize: '32', titleSize: '14', subtitleSize: '10', theme: 'dark', primaryColor: '#4a90c2', secondaryColor: '#087f8c' });
+  useEffect(() => { const controller = new AbortController(); platformService.branding(controller.signal).then((data) => { setBranding(data); document.documentElement.dataset.theme = data.theme || 'dark'; document.documentElement.style.setProperty('--brand-logo-size', `${data.logoSize || 32}px`); document.documentElement.style.setProperty('--brand-title-size', `${data.titleSize || 14}px`); document.documentElement.style.setProperty('--brand-subtitle-size', `${data.subtitleSize || 10}px`); document.documentElement.style.setProperty('--color-primary', data.primaryColor || '#4a90c2'); document.documentElement.style.setProperty('--primary', data.primaryColor || '#4a90c2'); document.documentElement.style.setProperty('--sidebar-background', data.primaryColor || '#4a90c2'); document.documentElement.style.setProperty('--color-accent', data.secondaryColor || '#087f8c'); }).catch(() => {}); return () => controller.abort(); }, []);
   const [searchParams] = useSearchParams();
   const requestedPatientId = Number(searchParams.get('patient')) || null;
   const requestedCaseId = Number(searchParams.get('case')) || null;
@@ -570,7 +573,7 @@ export default function App() {
   if (!user) return <Login />;
   return (
     <div className="clinical-shell">
-      <ClinicalSidebar />
+      <ClinicalSidebar branding={branding} />
       <main id="main-content" className={`layout${selectedCase ? ` layout--case-review layout--section-${caseSection}` : ''}`}>
         <header className="header">
           <div className="header-brand">
@@ -592,7 +595,20 @@ export default function App() {
         {selectedCase && <section className="case-review-hero" aria-label="Case review header">
           <div className="case-review-hero__crumbs"><Link to="/cases">Cases workspace</Link><ChevronDown size={14} /><strong>{selectedCase.case_id}</strong><span className="case-review-hero__mode">Comparison mode</span></div>
           <div className="case-review-hero__main"><div><div className="case-review-hero__title"><h1>{selectedCase.case_id}</h1><span className={`review-status status-${(selectedCase.status || 'New').toLowerCase().replace(' ', '-')}`}>{selectedCase.status || 'New'}</span></div><p>{selectedCase.description || 'Histology case'} <span>·</span> {selectedCase.slide_count} slide{selectedCase.slide_count === 1 ? '' : 's'} <span>·</span> Assigned to {selectedCase.reviewer || 'Unassigned'}</p></div><div className="case-review-hero__meta"><div><small>Patient / specimen ID</small><strong>{selectedCase.patient_identifier || selectedCase.patient_id || 'Not recorded'}</strong></div><div><small>Specimen type</small><strong>{selectedCase.specimen_type || selectedCase.description || 'Not recorded'}</strong></div><div><small>Case created</small><strong>{formatDate(selectedCase.created_at)}</strong></div><div><small>Status</small><strong>{selectedCase.status || 'New'}</strong></div></div></div>
-          <nav className="case-review-tabs" aria-label="Case sections">{[['slides', 'Slide comparison', FileImage, null], ['details', 'Case details', ClipboardCheck, 'review'], ['report', 'Report', Edit3, 'report']].map(([key, label, Icon, panel]) => <button key={key} type="button" className={`case-review-tab${caseSection === key ? ' case-review-tab--active' : ''}`} onClick={() => openCaseSection(key, panel)}><Icon size={16} />{label}</button>)}</nav>
+          <Tabs
+            className="case-review-tabs"
+            ariaLabel="Case sections"
+            value={caseSection}
+            onChange={(key) => {
+              const panel = key === 'details' ? 'review' : key === 'report' ? 'report' : null;
+              openCaseSection(key, panel);
+            }}
+            items={[
+              { value: 'slides', label: 'Slide comparison', icon: FileImage },
+              { value: 'details', label: 'Case details', icon: ClipboardCheck },
+              { value: 'report', label: 'Report', icon: Edit3 },
+            ]}
+          />
         </section>}
 
         {selectedCase && caseSection === 'details' && <section className="case-tab-page"><header><span>Case details</span><h2>{selectedCase.case_id}</h2></header><dl className="case-tab-detail-grid"><div><dt>Status</dt><dd>{selectedCase.status || 'New'}</dd></div><div><dt>Patient / specimen ID</dt><dd>{selectedCase.patient_identifier || selectedCase.patient_id || 'Not recorded'}</dd></div><div><dt>Specimen type</dt><dd>{selectedCase.specimen_type || 'Not recorded'}</dd></div><div><dt>Assigned pathologist</dt><dd>{selectedCase.reviewer || 'Unassigned'}</dd></div><div><dt>Created</dt><dd>{formatDate(selectedCase.created_at)}</dd></div><div><dt>Slides</dt><dd>{selectedCase.slide_count || 0}</dd></div></dl></section>}

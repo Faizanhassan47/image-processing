@@ -5,6 +5,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { caseService } from '../../services/caseService';
 import { subscribeToClinicalDataChanges } from '../../services/clinicalDataEvents';
 import './Dashboard.css';
+import Tabs from '../../components/Tabs/Tabs';
 
 const statusTabs = [
   ['All cases', null],
@@ -91,9 +92,13 @@ export default function Dashboard() {
         <header className="dashboard-page__worklist-header">
           <div><h2>{ownsOnlyCases ? 'My cases' : 'Case worklist'}</h2><p>{ownsOnlyCases ? 'Cases assigned to you for review.' : 'Current cases available to your account.'}</p></div>
         </header>
-        <div className="dashboard-page__tabs" role="tablist" aria-label="Case status">
-          {statusTabs.map(([label, status]) => <button key={label} type="button" role="tab" aria-selected={activeTab === status} className={activeTab === status ? 'is-active' : ''} onClick={() => setActiveTab(status)}>{label} <span>({count(status)})</span></button>)}
-        </div>
+        <Tabs
+          className="dashboard-page__tabs"
+          ariaLabel="Case status"
+          value={activeTab}
+          onChange={setActiveTab}
+          items={statusTabs.map(([label, status]) => ({ value: status, label: `${label} (${count(status)})` }))}
+        />
         <div className="dashboard-page__toolbar">
           <label className="dashboard-page__search"><Search size={17} /><span className="sr-only">Search cases</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search cases, diagnosis, or assigned pathologist" /></label>
         </div>

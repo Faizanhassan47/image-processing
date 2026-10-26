@@ -3,6 +3,7 @@ import { Eye, EyeOff, Microscope } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from './AuthProvider';
 import './Login.css';
+import Button from '../../components/Button/Button';
 
 export default function Login() {
   const { login } = useAuth();
@@ -38,9 +39,9 @@ export default function Login() {
           <div className="password-field">
             <input id="login-password" type={showPassword ? 'text' : 'password'} value={password} onChange={(event) => setPassword(event.target.value)}
               onKeyUp={(event) => setCapsLock(event.getModifierState('CapsLock'))} required autoComplete="current-password" placeholder="Enter your password" />
-            <button type="button" className="password-toggle" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? 'Hide password' : 'Show password'}>
+            <Button type="button" variant="ghost" size="sm" className="password-toggle" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? 'Hide password' : 'Show password'}>
               {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
-            </button>
+            </Button>
           </div>
           {capsLock && <p className="field-hint field-hint--warning" role="status">Caps Lock is on.</p>}
         </div>

@@ -130,3 +130,13 @@
   --sidebar-width: 232px;
   --header-height: 60px;
 }
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg-app: #f5f7f9; --bg-card: #ffffff; --bg-card-border: #e5e7eb; --bg-inner: #f9fafb;
+  --text-main: #0f172a; --text-muted: #475569; --text-dim: #64748b;
+  --border-subtle: #e2e8f0; --border-interactive: #cbd5e1;
+  --surface-control: #ffffff; --surface-table-header: #f8fafc;
+  --color-page-bg: #f5f7f9; --color-surface: #ffffff; --color-surface-subtle: #f8fafb; --color-surface-elevated: #ffffff; --color-surface-hover: #f1f5f8;
+  --color-text: #253443; --color-text-muted: #667788; --color-text-secondary: #667788; --color-border: #dde3e8; --color-border-strong: #c5d0d8;
+}

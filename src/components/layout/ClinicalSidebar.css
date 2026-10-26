@@ -9,6 +9,10 @@
   min-height: 100vh;
 }
 
+.clinical-brand img { width: var(--brand-logo-size, 32px); height: var(--brand-logo-size, 32px); object-fit: contain; }
+.clinical-brand strong { font-size: var(--brand-title-size, 14px); }
+.clinical-brand small { font-size: var(--brand-subtitle-size, 10px); }
+
 @media (max-width: 900px) {
   .clinical-sidebar {
     position: static;

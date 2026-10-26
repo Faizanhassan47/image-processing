@@ -6,6 +6,7 @@ import { apiFetch } from '../../api';
 import useUnsavedChanges from '../../hooks/useUnsavedChanges';
 import Modal from '../Modal/Modal';
 import { reportService } from '../../services/reportService';
+import Tabs from '../Tabs/Tabs';
 
 function Field({ label, children }) {
   return <label className="field-group"><span className="field-label">{label}</span>{children}</label>;
@@ -198,11 +199,17 @@ export default function ReportEditor({ selectedCase, selectSlide, setMessage, on
       {!currentDraft && <button type="button" className="btn-primary" onClick={createDraft} disabled={busy}><Plus size={16} /> New draft</button>}
     </header>
 
-    <div className="report-tabs" role="tablist" aria-label="Report sections">
-      {['edit', 'preview', 'versions'].map((tab) => <button key={tab} type="button" role="tab" aria-selected={activeTab === tab}
-        className={activeTab === tab ? 'report-tab report-tab--active' : 'report-tab'} onClick={() => setActiveTab(tab)}
-        disabled={tab !== 'versions' && !activeReport}>{tab[0].toUpperCase() + tab.slice(1)}</button>)}
-    </div>
+    <Tabs
+      className="report-tabs"
+      ariaLabel="Report sections"
+      value={activeTab}
+      onChange={setActiveTab}
+      items={['edit', 'preview', 'versions'].map((tab) => ({
+        value: tab,
+        label: tab[0].toUpperCase() + tab.slice(1),
+        disabled: tab !== 'versions' && !activeReport,
+      }))}
+    />
 
     {activeTab === 'edit' && currentDraft && <form key={`${currentDraft.id}-${templateVersion}-${aiDraftVersion}`} className="report-form" onSubmit={handleUpdate} onChange={() => setIsDirty(true)}>
       <div className="report-template-bar">

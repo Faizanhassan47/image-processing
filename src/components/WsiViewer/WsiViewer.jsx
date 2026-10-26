@@ -15,6 +15,7 @@ import ViewerDisplaySettings from './ViewerDisplaySettings';
 import ViewerBookmarksModal from './ViewerBookmarksModal';
 import ViewerShortcutsModal from './ViewerShortcutsModal';
 import ViewerTrail from './ViewerTrail';
+import Tabs from '../Tabs/Tabs';
 
 const DISPLAY_PROFILES = {
   standard: ['Standard color', 'Original RGB display without a profile transformation.'],
@@ -1190,7 +1191,13 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
       </div>
 
       <aside className={`annotation-panel annotation-panel--${inspectorTab}`}>
-        <nav className="findings-tabs" aria-label="Viewer findings">{[['findings', 'Findings'], ['ai', 'AI insights']].map(([key, label]) => <button key={key} type="button" className={`findings-tab${inspectorTab === key ? ' findings-tab--active' : ''}`} onClick={() => setInspectorTab(key)}>{label}</button>)}</nav>
+        <Tabs
+          className="findings-tabs"
+          ariaLabel="Viewer findings"
+          value={inspectorTab}
+          onChange={setInspectorTab}
+          items={[{ value: 'findings', label: 'Findings' }, { value: 'ai', label: 'AI insights' }]}
+        />
 
         {inspectorTab === 'findings' && <section className="selected-findings"><div><strong>Selected findings ({annotations.length})</strong><button type="button" className="btn-control-secondary" onClick={() => setDrawMode('rectangle')}>＋ Add</button></div>{selectedAnnotation ? <><p><span className="finding-dot" />{selectedAnnotation.label || 'Selected region'}</p><dl className="finding-details"><div><dt>Type</dt><dd>{selectedAnnotation.category || selectedAnnotation.annotation_type || 'Annotation'}</dd></div><div><dt>Description</dt><dd>{selectedAnnotation.note || 'No description recorded.'}</dd></div><div><dt>Coordinates</dt><dd>{selectedAnnotation.x != null ? `${Math.round(selectedAnnotation.x)}, ${Math.round(selectedAnnotation.y)}` : 'Path region'}</dd></div>{selectedAnnotation.width && <div><dt>Size</dt><dd>{Math.round(selectedAnnotation.width)} × {Math.round(selectedAnnotation.height)} px</dd></div>}</dl></> : <small>Select an annotation or draw a region to add a finding.</small>}</section>}
         {!calibration?.available && <section className="viewer-calibration" aria-label="Physical calibration">

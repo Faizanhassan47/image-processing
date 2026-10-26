@@ -19,6 +19,7 @@ const PatientProfile = lazy(() => import('../modules/patients/PatientProfile'));
 const AIFeatures = lazy(() => import('../modules/ai/AIFeatures'));
 const AILicensing = lazy(() => import('../modules/ai/AILicensing'));
 const ManageAIFeatures = lazy(() => import('../modules/ai/ManageAIFeatures'));
+const SystemSettings = lazy(() => import('../modules/admin/SystemSettings'));
 
 function LoadingScreen() { return <main className="route-loading" aria-live="polite"><span className="loading-spinner" /> Loading workspace...</main>; }
 function ProtectedRoute({ adminOnly = false, superAdminOnly = false, operationsAccess = false, pathologistExcluded = false, children }) {
@@ -36,6 +37,7 @@ function AdminPage() { return <AdminContent><AdminPanel API={API_BASE_URL} /></A
 function AdminLogsPage() { return <AdminContent><AdministrationLogs /></AdminContent>; }
 function AILicensingPage() { return <AdminContent><AILicensing /></AdminContent>; }
 function ManageAIFeaturesPage() { return <AdminContent><ManageAIFeatures /></AdminContent>; }
+function SystemSettingsPage() { return <AdminContent><SystemSettings /></AdminContent>; }
 function NotFound() { return <main id="main-content" className="not-found"><h1>Page not found</h1><p>The requested page does not exist.</p><Link to="/" className="btn-primary route-link">Return to workspace</Link></main>; }
 
 export default function AppRouter() {
@@ -46,6 +48,7 @@ export default function AppRouter() {
     <Route path="/case-library" element={<ProtectedRoute><ClinicalShell><ErrorBoundary title="The case library could not be displayed"><CaseLibrary /></ErrorBoundary></ClinicalShell></ProtectedRoute>} />
     <Route path="/cases" element={<ProtectedRoute><ErrorBoundary title="The workspace could not be displayed"><Workspace /></ErrorBoundary></ProtectedRoute>} />
     <Route path="/admin" element={<ProtectedRoute adminOnly><ErrorBoundary title="The admin panel could not be displayed"><AdminPage /></ErrorBoundary></ProtectedRoute>} />
+    <Route path="/admin/settings" element={<ProtectedRoute adminOnly><ErrorBoundary title="System settings could not be displayed"><SystemSettingsPage /></ErrorBoundary></ProtectedRoute>} />
     <Route path="/admin/logs" element={<ProtectedRoute adminOnly><ErrorBoundary title="Activity logs could not be displayed"><AdminLogsPage /></ErrorBoundary></ProtectedRoute>} />
     <Route path="/admin/ai-licensing" element={<ProtectedRoute adminOnly><ErrorBoundary title="AI licensing could not be displayed"><AILicensingPage /></ErrorBoundary></ProtectedRoute>} />
     <Route path="/admin/ai-features" element={<ProtectedRoute superAdminOnly><ErrorBoundary title="AI feature management could not be displayed"><ManageAIFeaturesPage /></ErrorBoundary></ProtectedRoute>} />
