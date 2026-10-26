@@ -2,6 +2,7 @@ import { useEffect, useId, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import './Modal.css';
+import Button from '../Button/Button';
 
 export default function Modal({ open, title, children, onClose, footer, initialFocusRef }) {
   const dialogRef = useRef(null);
@@ -62,9 +63,9 @@ export default function Modal({ open, title, children, onClose, footer, initialF
       >
         <header className="global-modal__header">
           <h2 id={titleId}>{title}</h2>
-          <button type="button" className="global-modal__close" onClick={onClose} aria-label="Close dialog">
+          <Button type="button" variant="ghost" size="sm" className="global-modal__close" onClick={onClose} aria-label="Close dialog">
             <X size={18} />
-          </button>
+          </Button>
         </header>
         <div className="global-modal__body">{children}</div>
         {footer && <footer className="global-modal__footer">{footer}</footer>}

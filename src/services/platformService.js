@@ -11,6 +11,8 @@ async function request(path, options = {}) {
 }
 
 export const platformService = {
+  branding: (signal) => request('/branding', { signal }),
+  updateSetting: (key, value) => request(`/settings/${encodeURIComponent(key)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value }) }),
   health: (signal) => request('/health', { signal }),
   dashboardMetrics: (signal) => request('/dashboard/metrics', { signal }),
   workQueue: (signal) => request('/dashboard/work-queue', { signal }),

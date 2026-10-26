@@ -157,7 +157,7 @@ textarea:focus,
 
 .btn-primary,
 .login-box button[type="submit"] {
-  color: #fff;
+  color: var(--primary-text, #fff);
   background: var(--primary);
   border: 1px solid var(--primary);
   border-radius: 4px;
@@ -167,7 +167,7 @@ textarea:focus,
 
 .btn-primary:hover:not(:disabled),
 .login-box button[type="submit"]:hover:not(:disabled) {
-  color: #fff;
+  color: var(--primary-text, #fff);
   background: var(--primary-hover);
   box-shadow: none;
   transform: none;
