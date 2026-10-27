@@ -783,3 +783,108 @@
   color: var(--text-dim);
   line-height: 1.5;
 }
+
+/* KongNet detection layer and candidate list. */
+.ai-mitotic-marker {
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.ai-mitotic-ring {
+  fill: rgba(220, 38, 38, 0.12);
+  stroke: #ef4444;
+  stroke-width: 2.5;
+}
+
+.ai-mitotic-ring--selected {
+  fill: rgba(220, 38, 38, 0.24);
+  stroke: #facc15;
+  stroke-width: 3;
+}
+
+.ai-mitotic-crosshair {
+  fill: none;
+  stroke: #ef4444;
+  stroke-width: 1.5;
+  pointer-events: none;
+}
+
+.ai-mitotic-section {
+  padding: 0 14px 12px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.ai-mitotic-section h4 {
+  margin: 10px 0 6px;
+  font-size: var(--font-size-sm);
+  color: var(--text-main);
+}
+
+.ai-mitotic-hint {
+  margin: 0 0 10px;
+  color: var(--text-dim);
+  font-size: var(--font-size-xs);
+  line-height: 1.5;
+}
+
+.ai-mitotic-list {
+  display: grid;
+  gap: 6px;
+}
+
+.ai-mitotic-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-inner);
+  color: var(--text-main);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.ai-mitotic-item:hover,
+.ai-mitotic-item--selected {
+  border-color: var(--primary);
+}
+
+.ai-mitotic-item:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.ai-mitotic-crop,
+.ai-mitotic-placeholder {
+  width: 50px;
+  height: 50px;
+  flex: 0 0 50px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  background: var(--bg-canvas);
+}
+
+.ai-mitotic-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+}
+
+.ai-mitotic-content {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ai-mitotic-content strong {
+  font-size: var(--font-size-xs);
+}
+
+.ai-mitotic-content small {
+  color: var(--text-dim);
+  font-size: 0.7rem;
+}
