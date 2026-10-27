@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Eye, EyeOff, Microscope } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from './AuthProvider';
 import './Login.css';
 import Button from '../../components/Button/Button';
+import { platformService } from '../../services/platformService';
 
 export default function Login() {
   const { login } = useAuth();
@@ -12,6 +13,21 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [capsLock, setCapsLock] = useState(false);
+  const [branding, setBranding] = useState({ title: 'Digital Pathology', subtitle: 'Sign in to continue to the case worklist.', logo: null, primaryColor: '' });
+
+  useEffect(() => {
+    const controller = new AbortController();
+    platformService.branding(controller.signal).then((data) => {
+      setBranding((current) => ({ ...current, ...data }));
+      if (data.theme) document.documentElement.dataset.theme = data.theme;
+      if (data.primaryColor) {
+        document.documentElement.style.setProperty('--color-primary', data.primaryColor);
+        document.documentElement.style.setProperty('--primary', data.primaryColor);
+      }
+      if (data.secondaryColor) document.documentElement.style.setProperty('--color-accent', data.secondaryColor);
+    }).catch(() => {});
+    return () => controller.abort();
+  }, []);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -24,10 +40,10 @@ export default function Login() {
   return <main className="login-container">
     <section className="login-box" aria-labelledby="login-title">
       <header className="login-header">
-        <div className="login-logo" aria-hidden="true"><Microscope size={27} /></div>
+        <div className="login-logo" aria-hidden="true">{branding.logo ? <img src={branding.logo} alt="" /> : <Microscope size={27} />}</div>
         <p className="login-eyebrow">Laboratory workspace</p>
-        <h1 id="login-title">Digital Pathology</h1>
-        <p className="login-subtitle">Sign in to continue to the case worklist.</p>
+        <h1 id="login-title">{branding.title}</h1>
+        <p className="login-subtitle">{branding.subtitle}</p>
       </header>
       <form onSubmit={handleSubmit}>
         <div className="form-group">

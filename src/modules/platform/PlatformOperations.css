@@ -51,9 +51,6 @@
   border-radius: var(--radius-md);
 }
 
-.ops-metrics svg {
-  color: var(--color-primary);
-}
 
 .ops-metrics span,
 .ops-row small {

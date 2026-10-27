@@ -47,7 +47,6 @@
 
 .activity-summary svg {
   grid-row: span 2;
-  color: var(--color-primary);
 }
 
 .activity-summary span {
@@ -254,9 +253,6 @@
   background: var(--color-primary-soft);
 }
 
-.activity-outcome {
-  background: var(--color-success-soft);
-}
 
 .activity-empty {
   padding: var(--space-12) !important;
