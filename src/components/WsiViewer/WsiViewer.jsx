@@ -70,6 +70,23 @@ function scaleLabel(microns) {
   return `${Number(microns.toPrecision(3))} µm`;
 }
 
+// KongNet candidates must use absolute level-0 slide positions.
+// Do not add the ROI origin here: conversion belongs to the inference backend.
+function getMitoticPosition(detection) {
+  const point = detection?.center_level0 ?? detection?.centroid_level0 ?? detection?.level0;
+  const x = point?.x ?? (Array.isArray(point) ? point[0] : undefined)
+    ?? detection?.slide_x ?? detection?.x_level0 ?? detection?.center_x ?? detection?.x;
+  const y = point?.y ?? (Array.isArray(point) ? point[1] : undefined)
+    ?? detection?.slide_y ?? detection?.y_level0 ?? detection?.center_y ?? detection?.y;
+  if (x == null || y == null || !Number.isFinite(Number(x)) || !Number.isFinite(Number(y))) return null;
+  return { x: Number(x), y: Number(y) };
+}
+
+function isKongNetAnalysis(analysis) {
+  return analysis?.feature_code === 'MITOTIC_DETECTION'
+    || /kongnet/i.test(String(analysis?.model_name ?? ''));
+}
+
 export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, externalViewerRef, onOpenRegistration, onOpenCompare, activePanel }) {
   const { user } = useAuth();
   const elementRef = useRef(null);
@@ -134,6 +151,7 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
   const [aiHiddenClasses, setAiHiddenClasses] = useState(new Set());
   /** The nucleus the user last clicked, shown in the panel detail card. */
   const [aiSelectedNucleus, setAiSelectedNucleus] = useState(null);
+  const [selectedMitoticCandidate, setSelectedMitoticCandidate] = useState(null);
   /** Screen-space tooltip position for nucleus hover. */
   const [nucleusTooltip, setNucleusTooltip] = useState(null);
   /** AI operates on the bounding rectangle of the selected annotation shape. */
@@ -793,6 +811,20 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
     viewer.viewport.fitBounds(item.imageToViewportRectangle(rect), false);
   }, []);
 
+  const focusMitoticCandidate = useCallback((candidate) => {
+    const pos = getMitoticPosition(candidate);
+    const viewer = viewerRef.current;
+    const item = viewer?.world?.getItemAt(0);
+    if (!pos || !item || !viewer?.viewport) return;
+    setSelectedMitoticCandidate(candidate);
+    const p = item.imageToViewportCoordinates(pos.x, pos.y);
+    viewer.viewport.panTo(p, false);
+    const targetZoom = item.imageToViewportZoom(2);
+    if (Number.isFinite(targetZoom) && targetZoom > 0) {
+      viewer.viewport.zoomTo(Math.max(viewer.viewport.getZoom(), targetZoom), p, false);
+    }
+  }, []);
+
   async function saveNew(event) {
     event.preventDefault();
     setSaving(true);
@@ -1125,7 +1157,27 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
                 </g>
               );
             })()}
-            {aiAnalysis?.nuclei && viewerReady && aiAnalysis.nuclei.map((nuc) => {
+            {/* ── KongNet mitotic figure candidates ─────────────────────────── */}
+            {isKongNetAnalysis(aiAnalysis) && viewerReady &&
+              (aiAnalysis.detections ?? aiAnalysis.predictions?.detections ?? []).map((det, index) => {
+                const pos = getMitoticPosition(det);
+                if (!pos) return null;
+                const screen = imageToViewport(pos.x, pos.y);
+                const selected = selectedMitoticCandidate === det ||
+                  (selectedMitoticCandidate?.id != null && selectedMitoticCandidate.id === det.id);
+                const score = det.score ?? det.probability ?? det.confidence;
+                return (
+                  <g key={`mitotic-${det.id ?? index}`} className="ai-mitotic-marker"
+                    onClick={(event) => { event.stopPropagation(); focusMitoticCandidate(det); }}>
+                    <title>{`Candidate ${det.id ?? index + 1}${score == null ? '' : ` · model score ${Number(score).toFixed(3)}`}`}</title>
+                    <circle cx={screen.x} cy={screen.y} r={selected ? 12 : 9}
+                      className={selected ? 'ai-mitotic-ring ai-mitotic-ring--selected' : 'ai-mitotic-ring'} />
+                    <path d={`M ${screen.x - 15} ${screen.y} h 8 M ${screen.x + 7} ${screen.y} h 8 M ${screen.x} ${screen.y - 15} v 8 M ${screen.x} ${screen.y + 7} v 8`}
+                      className="ai-mitotic-crosshair" />
+                  </g>
+                );
+              })}
+            {!isKongNetAnalysis(aiAnalysis) && aiAnalysis?.nuclei && viewerReady && aiAnalysis.nuclei.map((nuc) => {
               const cls = PANNUKE_CLASSES.find((c) => c.key === nuc.type) || { color: '#6366f1' };
               if (aiHiddenClasses.has(nuc.type)) return null;
               if (!nuc.contour || nuc.contour.length < 3) return null;
@@ -1256,7 +1308,11 @@ export default function WsiViewer({ slide, onError, syncViews, syncedViewerRef, 
           onAnalysisReady={(analysis) => {
             setAiAnalysis(analysis);
             setAiSelectedNucleus(null);
+            setSelectedMitoticCandidate(null);
           }}
+          sourceMpp={pixelSize}
+          onSelectMitoticCandidate={focusMitoticCandidate}
+          selectedMitoticCandidate={selectedMitoticCandidate}
           onPanToRoi={panToRoi}
           onError={onError}
         />}

@@ -18,6 +18,7 @@ import {
   Loader2, Play, RefreshCw, StopCircle, X, Zap
 } from 'lucide-react';
 import { viewerService } from '../../services/viewerService';
+import { API_BASE_URL } from '../../config';
 import { aiSubscriptionService } from '../../services/aiSubscriptionService';
 import './AiAnalysisPanel.css';
 
@@ -27,6 +28,28 @@ function formatDuration(sec) {
   const s = Math.floor(sec % 60);
   if (m === 0) return `${s}s`;
   return `${m}m ${s < 10 ? '0' : ''}${s}s`;
+}
+
+function isKongNetAnalysis(analysis) {
+  return analysis?.feature_code === 'MITOTIC_DETECTION' || /kongnet/i.test(String(analysis?.model_name ?? ''));
+}
+
+function calcKongnetTiles(w, h, sourceMpp = 0.25) {
+  if (!(w > 0 && h > 0 && sourceMpp > 0)) return null;
+  const scaledW = Math.max(1, Math.ceil(w * sourceMpp / 0.25));
+  const scaledH = Math.max(1, Math.ceil(h * sourceMpp / 0.25));
+  const starts = (dim) => dim <= 512 ? 1 : Math.ceil((dim - 512) / 448) + 1;
+  return starts(scaledW) * starts(scaledH);
+}
+
+function getCandidatePosition(detection) {
+  const pt = detection?.center_level0 ?? detection?.centroid_level0 ?? detection?.level0;
+  const x = pt?.x ?? (Array.isArray(pt) ? pt[0] : undefined)
+    ?? detection?.slide_x ?? detection?.x_level0 ?? detection?.center_x ?? detection?.x;
+  const y = pt?.y ?? (Array.isArray(pt) ? pt[1] : undefined)
+    ?? detection?.slide_y ?? detection?.y_level0 ?? detection?.center_y ?? detection?.y;
+  return x != null && y != null && Number.isFinite(Number(x)) && Number.isFinite(Number(y))
+    ? { x: Number(x), y: Number(y) } : null;
 }
 
 function calcHovernetPatches(w, h) {
@@ -194,6 +217,9 @@ export default function AiAnalysisPanel({
   selectedNucleus: externalSelectedNucleus,
   onSelectNucleus: externalOnSelectNucleus,
   onPanToRoi,
+  onSelectMitoticCandidate,
+  selectedMitoticCandidate,
+  sourceMpp,
 }) {
   const [open, setOpen] = useState(true);
   const [entitlements, setEntitlements] = useState(null);
@@ -336,7 +362,12 @@ export default function AiAnalysisPanel({
 
   // ── Run AI analysis ───────────────────────────────────────────────────────
   const runAnalysis = useCallback(async (autoTissue = false) => {
-    if (running || selectedFeatureCode !== 'HOVERNET') return;
+    if (running || !['HOVERNET', 'MITOTIC_DETECTION'].includes(selectedFeatureCode) ||
+        !(entitlements?.features || []).some((feature) =>
+          feature.feature_code === selectedFeatureCode &&
+          feature.is_entitled && feature.is_active &&
+          feature.is_implemented && feature.user_enabled
+        )) return;
     setRunning(true);
     setActiveJob(null);
     setSelectedNucleus(null);
@@ -410,7 +441,7 @@ export default function AiAnalysisPanel({
     } finally {
       abortRef.current = null;
     }
-  }, [running, selectedFeatureCode, roiRect, slide.id, onAnalysisReady, onError, onPanToRoi, startPollingJob]);
+  }, [running, selectedFeatureCode, entitlements, roiRect, slide.id, onAnalysisReady, onError, onPanToRoi, startPollingJob]);
 
   // ── PDF actions ───────────────────────────────────────────────────────────
   const handleDownloadPdf = useCallback(async () => {
@@ -487,14 +518,22 @@ export default function AiAnalysisPanel({
   const morphology = detail?.morphology ?? detail?.analysis?.morphology ?? null;
   const density = detail?.nuclear_density ?? detail?.analysis?.nuclear_density_per_mm2 ?? null;
   const confidence = detail?.confidence_summary ?? (detail?.confidence_statistics?.overall) ?? null;
+  const isMitotic = isKongNetAnalysis(detail);
+  const isKongNetSelected = selectedFeatureCode === 'MITOTIC_DETECTION';
+  const detections = detail?.detections ?? detail?.predictions?.detections ?? [];
+  const mitoticGallery = detail?.candidate_gallery ?? detail?.gallery ?? {};
+  const candidateImages = Array.isArray(mitoticGallery) ? mitoticGallery : (mitoticGallery?.items ?? []);
+  const mitoticCount = detail?.candidate_count ?? detections.length;
+  const mitoticDensity = detail?.candidate_density_per_mm2 ?? detail?.summary?.candidate_density_per_mm2;
+  const mitoticMeanScore = detail?.mean_score ?? detail?.confidence_summary?.mean;
   const totalNuclei = detail?.total_nuclei ?? detail?.analysis?.total_nuclei ?? detail?.counts?.total ?? 0;
-  const hasResults = Boolean(detail && (totalNuclei > 0 || detail.status?.toLowerCase() === 'completed'));
+  const hasResults = Boolean(detail && ((isMitotic ? mitoticCount : totalNuclei) > 0 || detail.status?.toLowerCase() === 'completed'));
   const elapsedSec = detail?.elapsed_seconds ?? detail?.inference_duration ?? null;
   const availableFeatures = (entitlements?.features || []).filter((feature) => (
     feature.is_entitled && feature.is_active && feature.is_implemented && feature.user_enabled
   ));
   const selectedFeature = availableFeatures.find((feature) => feature.feature_code === selectedFeatureCode);
-  const canRunSelectedFeature = selectedFeatureCode === 'HOVERNET';
+  const canRunSelectedFeature = ['HOVERNET', 'MITOTIC_DETECTION'].includes(selectedFeatureCode) && Boolean(selectedFeature);
   const accessDetail = !entitlements?.features?.length
     ? 'Your AI access could not be loaded.'
     : entitlements.features.every((feature) => !feature.is_entitled)
@@ -544,7 +583,7 @@ export default function AiAnalysisPanel({
           <div>
             <p className="ai-panel-title">AI Analysis</p>
             {hasResults && (
-              <p className="ai-panel-subtitle">{totalNuclei} nuclei · {selectedFeature?.feature_name || 'HoVer-Net'} Fast</p>
+              <p className="ai-panel-subtitle">{isMitotic ? `${mitoticCount} mitotic candidates · KongNet-Det` : `${totalNuclei} nuclei · ${detail?.model_name || 'HoVer-Net'}`}</p>
             )}
           </div>
         </div>
@@ -586,7 +625,7 @@ export default function AiAnalysisPanel({
                 <div className="ai-progress-title-row">
                   <Loader2 size={13} className="spin ai-progress-spinner" aria-hidden="true" />
                   <span className="ai-progress-stage">
-                    {activeJob?.progress?.stage || 'Running HoVer-Net inference…'}
+                    {activeJob?.progress?.stage || (isKongNetSelected ? 'Running KongNet inference…' : 'Running HoVer-Net inference…')}
                   </span>
                 </div>
                 <button
@@ -638,7 +677,7 @@ export default function AiAnalysisPanel({
               {pendingConfirmation && (
                 <div className="ai-confirmation" role="alert">
                   <strong>Large analysis request</strong>
-                  <span>{pendingConfirmation.patches} patches; estimated time {formatDuration(pendingConfirmation.estSec)}. This will run in the background.</span>
+                  <span>{pendingConfirmation.patches ?? 'Unknown number of'} {isKongNetSelected ? 'tiles' : 'patches'}; estimated time {formatDuration(pendingConfirmation.estSec)}. This will run in the background.</span>
                   <div className="ai-confirmation__actions">
                     <button type="button" className="ai-action-btn ai-action-btn--secondary" onClick={() => setPendingConfirmation(null)}>Cancel</button>
                     <button type="button" className="ai-action-btn" onClick={() => { const request = pendingConfirmation; setPendingConfirmation(null); runAnalysis(request.autoTissue); }}>Start analysis</button>
@@ -648,11 +687,11 @@ export default function AiAnalysisPanel({
               {roiRect ? (() => {
                 const w = Math.round(roiRect.width);
                 const h = Math.round(roiRect.height);
-                const patches = calcHovernetPatches(w, h);
+                const patches = isKongNetSelected ? calcKongnetTiles(w, h, sourceMpp) : calcHovernetPatches(w, h);
                 const isTooLarge = w > 8192 || h > 8192;
                 const isTooSmall = w < 32 || h < 32;
-                const isLargeJob = patches > 25;
-                const estSec = Math.round(patches * 2.8);
+                const isLargeJob = patches == null ? true : patches > (isKongNetSelected ? 16 : 25);
+                const estSec = isKongNetSelected ? null : Math.round(patches * 2.8);
 
                 return (
                   <>
@@ -666,10 +705,10 @@ export default function AiAnalysisPanel({
                       </div>
                       <div className="ai-roi-badge-meta">
                         <span className="ai-roi-badge-patches">
-                          {patches} {patches === 1 ? 'patch' : 'patches'}
+                          {patches == null ? 'Tile estimate requires slide MPP' : `${patches} ${isKongNetSelected ? (patches === 1 ? 'tile' : 'tiles') : (patches === 1 ? 'patch' : 'patches')}`}
                         </span>
                         <span className="ai-roi-badge-time">
-                          ~{formatDuration(estSec)} ({isLargeJob ? 'Background Job' : 'Fast Analysis'})
+                          {estSec == null ? 'Duration not estimated' : `~${formatDuration(estSec)}`} ({isLargeJob ? 'Background Job' : 'Fast Analysis'})
                         </span>
                       </div>
                       {isTooLarge && (
@@ -742,6 +781,48 @@ export default function AiAnalysisPanel({
                 </button>
               </div>
 
+              {isMitotic ? (
+                <>
+                  <div className="ai-stats-grid">
+                    {[
+                      ['Mitotic candidates', mitoticCount],
+                      ['Candidate density', mitoticDensity == null ? '—' : `${Number(mitoticDensity).toFixed(1)} /mm²`],
+                      ['Analyzed area', detail.analyzed_area_mm2 == null ? '—' : `${Number(detail.analyzed_area_mm2).toFixed(3)} mm²`],
+                      ['Mean model score', mitoticMeanScore == null ? '—' : Number(mitoticMeanScore).toFixed(3)],
+                      ['Detection threshold', detail.threshold == null ? '—' : Number(detail.threshold).toFixed(2)],
+                      ['Execution time', detail.execution_time_seconds == null ? '—' : formatDuration(detail.execution_time_seconds)],
+                    ].map(([label, value]) => (
+                      <div className="ai-stat-card" key={label}>
+                        <span className="ai-stat-value">{value}</span>
+                        <span className="ai-stat-label">{label}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <section className="ai-mitotic-section" aria-label="Mitotic candidate review">
+                    <h4>Mitotic candidates ({detections.length})</h4>
+                    <p className="ai-mitotic-hint">Raw, uncalibrated model scores. Select a candidate to locate it on the slide.</p>
+                    {detections.length === 0 && <p className="ai-mitotic-hint">No mitotic candidates detected in this ROI.</p>}
+                    <div className="ai-mitotic-list">
+                      {detections.map((det, index) => {
+                        const pos = getCandidatePosition(det);
+                        const score = det.score ?? det.probability ?? det.confidence;
+                        const crop = candidateImages.find(item => String(item.detection_id ?? item.id ?? item.det_id) === String(det.id)) ?? candidateImages[index];
+                        const imageUrl = crop?.image_url;
+                        const isSelected = selectedMitoticCandidate === det || (selectedMitoticCandidate?.id != null && selectedMitoticCandidate.id === det.id);
+                        return (
+                          <button type="button" key={det.id ?? index}
+                            className={`ai-mitotic-item${isSelected ? ' ai-mitotic-item--selected' : ''}`}
+                            onClick={() => onSelectMitoticCandidate?.(det)} disabled={!pos}>
+                            {imageUrl ? <img className="ai-mitotic-crop" src={imageUrl.startsWith('/') ? `${API_BASE_URL}${imageUrl}` : imageUrl} alt={`Candidate ${index + 1}`} /> : <span className="ai-mitotic-placeholder">#{index + 1}</span>}
+                            <span className="ai-mitotic-content"><strong>Candidate {det.id ?? index + 1}</strong><small>{pos ? `X ${Math.round(pos.x)} · Y ${Math.round(pos.y)}` : 'Coordinates unavailable'}</small><small>Model score: {score == null ? '—' : Number(score).toFixed(3)}</small></span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </section>
+                </>
+              ) : (
+                <>
               <div className="ai-stats-grid">
                 <div className="ai-stat-card">
                   <span className="ai-stat-value">{totalNuclei}</span>
@@ -802,6 +883,9 @@ export default function AiAnalysisPanel({
                 />
               )}
 
+                </>
+              )}
+
               {/* ── PDF download and report actions ─────────────────── */}
               <div className="ai-actions ai-actions--reports">
                 <button
@@ -830,7 +914,7 @@ export default function AiAnalysisPanel({
 
               {/* ── Model info ────────────────────────────────────── */}
               <div className="ai-model-info">
-                HoVer-Net Fast · PanNuke weights · 256 × 256 patch
+                {isMitotic ? 'KongNet-Det · MIDOG mitotic candidate detection' : 'HoVer-Net Fast · PanNuke weights · 256 × 256 patch'}
                 {elapsedSec != null && ` · ${elapsedSec}s`}
                 {detail.created_at && ` · ${new Date(detail.created_at).toLocaleString()}`}
               </div>
@@ -853,7 +937,7 @@ export default function AiAnalysisPanel({
               >
                 {analyses.map((a) => (
                   <option key={a.id} value={a.id}>
-                    {a.total_nuclei ?? '?'} nuclei · {a.created_at ? new Date(a.created_at).toLocaleString() : `#${a.id}`}
+                    {isKongNetAnalysis(a) ? `${a.candidate_count ?? a.total_nuclei ?? '?'} candidates` : `${a.total_nuclei ?? '?'} nuclei`} · {a.created_at ? new Date(a.created_at).toLocaleString() : `#${a.id}`}
                   </option>
                 ))}
               </select>
