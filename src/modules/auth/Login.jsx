@@ -7,7 +7,7 @@ import Button from '../../components/Button/Button';
 import { platformService } from '../../services/platformService';
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, sessionExpired } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -45,6 +45,11 @@ export default function Login() {
         <h1 id="login-title">{branding.title}</h1>
         <p className="login-subtitle">{branding.subtitle}</p>
       </header>
+      {sessionExpired && (
+        <div className="login-session-expired-banner" role="alert">
+          Session expired — please sign in again
+        </div>
+      )}
       <form onSubmit={handleSubmit}>
         <div className="form-group">
           <label htmlFor="login-username">Username</label>

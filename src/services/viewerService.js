@@ -83,7 +83,17 @@ export const viewerService = {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `ai_report_analysis_${analysisId}.pdf`;
+
+    const disposition = response.headers.get('Content-Disposition') || response.headers.get('content-disposition');
+    let filename = `ai_report_analysis_${analysisId}.pdf`;
+    if (disposition) {
+      const match = disposition.match(/filename\*?=(?:UTF-8'')?["']?([^"';\r\n]+)["']?/i);
+      if (match && match[1]) {
+        filename = match[1].trim();
+      }
+    }
+
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     a.remove();
